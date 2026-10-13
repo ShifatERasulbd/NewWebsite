@@ -38,6 +38,11 @@ const Users = lazyWithRetry(() => import('@/backend/pages/User/user'), 'users');
 const AddUser = lazyWithRetry(() => import('@/backend/pages/User/addUser'), 'users-add');
 const EditUser = lazyWithRetry(() => import('@/backend/pages/User/editUser'), 'users-edit');
 
+// page route
+const Pages = lazyWithRetry(() => import('@/backend/pages/Page/pages'), 'pages');
+const AddPage = lazyWithRetry(() => import('@/backend/pages/Page/addPage'), 'pages-add');
+const EditPage = lazyWithRetry(() => import('@/backend/pages/Page/editPage'), 'pages-edit');
+
 function AuthScreen({ children }) {
     return (
         <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-10 text-foreground">
@@ -101,6 +106,11 @@ export default function App() {
                             <Route path="/users" element={<Users />} />
                             <Route path="/users/add" element={<AddUser />} />
                             <Route path="/users/:id/edit" element={<EditUser />} />
+
+                            {/* Pages */}
+                            <Route path="/pages" element={<Pages />} />
+                            <Route path="/pages/add" element={<AddPage />} />
+                            <Route path="/pages/:id/edit" element={<EditPage />} />
                         </Route>
                     </Routes>
                 </Suspense>

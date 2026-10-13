@@ -1,8 +1,9 @@
 <?php
 
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\UserController;
 use App\Http\Controllers\GoogleAuthController;
+use App\Http\Controllers\PageController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
 // root -> admin
@@ -22,6 +23,9 @@ Route::prefix('api')->group(function () {
         Route::get('/user', [UserController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::apiResource('/users', UserController::class);
+
+        // pages
+        Route::apiResource('/pages', PageController::class);
     });
 });
 

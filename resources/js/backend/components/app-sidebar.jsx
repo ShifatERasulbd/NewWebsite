@@ -22,6 +22,7 @@ import { useAppContext } from '@/backend/context/AppContext';
 
 const homeItems = [
     { title: 'Dashboard', icon: Gauge, path: '/dashboard' },
+    { title: 'Pages', icon: Gauge, path: '/pages'},
 ];
 
 const userAccessItems = [

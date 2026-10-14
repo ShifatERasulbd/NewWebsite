@@ -43,6 +43,11 @@ const Pages = lazyWithRetry(() => import('@/backend/pages/Page/pages'), 'pages')
 const AddPage = lazyWithRetry(() => import('@/backend/pages/Page/addPage'), 'pages-add');
 const EditPage = lazyWithRetry(() => import('@/backend/pages/Page/editPage'), 'pages-edit');
 
+// menu route
+const Menus = lazyWithRetry(() => import('@/backend/pages/Menu/menus'), 'menus');
+const AddMenu = lazyWithRetry(() => import('@/backend/pages/Menu/addMenu'), 'menu-add');
+const EditMenu = lazyWithRetry(() => import('@/backend/pages/Menu/editMenu'), 'pages-edit');
+
 function AuthScreen({ children }) {
     return (
         <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-10 text-foreground">
@@ -111,6 +116,11 @@ export default function App() {
                             <Route path="/pages" element={<Pages />} />
                             <Route path="/pages/add" element={<AddPage />} />
                             <Route path="/pages/:id/edit" element={<EditPage />} />
+
+                            {/* Menus */}
+                            <Route path="/menus" element={<Menus />} />
+                            <Route path="/menus/add" element={<AddMenu />} />
+                            <Route path="/menus/:id/edit" element={<EditMenu />} />
                         </Route>
                     </Routes>
                 </Suspense>

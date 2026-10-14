@@ -5,6 +5,7 @@ use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\MenuController;
 
 // root -> admin
 Route::redirect('/', '/admin');
@@ -26,6 +27,9 @@ Route::prefix('api')->group(function () {
 
         // pages
         Route::apiResource('/pages', PageController::class);
+
+        // New Menu Routes
+        Route::apiResource('menus', MenuController::class);
     });
 });
 

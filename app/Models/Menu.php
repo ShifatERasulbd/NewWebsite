@@ -11,10 +11,13 @@ class Menu extends Model
 
     protected $fillable = [
         'title',
-       
+       'design',
         'order',
         'status',
     ];
 
+    protected $casts =[
+        'design' => 'array'
+    ];
    
 }

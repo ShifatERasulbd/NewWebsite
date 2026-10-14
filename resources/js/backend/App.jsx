@@ -47,6 +47,7 @@ const EditPage = lazyWithRetry(() => import('@/backend/pages/Page/editPage'), 'p
 const Menus = lazyWithRetry(() => import('@/backend/pages/Menu/menus'), 'menus');
 const AddMenu = lazyWithRetry(() => import('@/backend/pages/Menu/addMenu'), 'menu-add');
 const EditMenu = lazyWithRetry(() => import('@/backend/pages/Menu/editMenu'), 'pages-edit');
+const DesignMenu = lazyWithRetry(() => import('@/backend/pages/Menu-items/designMenu'), 'menu-design');
 
 // menu items route
 const MenuItems = lazyWithRetry(() => import('@/backend/pages/Menu-items/menuItems'), 'menu-items');
@@ -126,6 +127,7 @@ export default function App() {
                             <Route path="/menus" element={<Menus />} />
                             <Route path="/menus/add" element={<AddMenu />} />
                             <Route path="/menus/:id/edit" element={<EditMenu />} />
+                            <Route path="/menus/:menuId/design" element={<DesignMenu />} />
 
                             {/* Menu items (per menu) */}
                             <Route path="/menus/:menuId" element={<MenuItems />} />

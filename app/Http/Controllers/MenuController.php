@@ -2,25 +2,29 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\MenuDesignRequest;
+use App\Http\Requests\MenuReorderRequest;
 use App\Http\Requests\MenuRequest;
 use App\Models\Menu;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class MenuController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index(): JsonResponse
     {
-        $menus = Menu::orderBy('order')->get();
+        // Keep the list light: design JSON is loaded on the design page only
+        $menus = Menu::orderBy('order')->get()->makeHidden('design');
+
         return response()->json($menus);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
+    public function show(Menu $menu): JsonResponse
+    {
+        return response()->json($menu);
+    }
+
     public function store(MenuRequest $request): JsonResponse
     {
         $menu = Menu::create($request->validated());
@@ -31,10 +35,7 @@ class MenuController extends Controller
         ], 201);
     }
 
-   /**
-     * Reorder resources in storage.
-     */
-    public function reorder(MenuRequest $request): JsonResponse
+    public function reorder(MenuReorderRequest $request): JsonResponse
     {
         foreach ($request->validated('items') as $item) {
             Menu::where('id', $item['id'])->update(['order' => $item['order']]);
@@ -45,22 +46,16 @@ class MenuController extends Controller
         ]);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(MenuRequest $request, Menu $menu): JsonResponse
     {
         $menu->update($request->validated());
 
         return response()->json([
             'message' => 'Menu updated successfully.',
-            'data' => $menu,
+            'data' => $menu->makeHidden('design'),
         ]);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(Menu $menu): JsonResponse
     {
         $menu->delete();
@@ -68,5 +63,45 @@ class MenuController extends Controller
         return response()->json([
             'message' => 'Menu deleted successfully.',
         ]);
+    }
+
+    // ----- design -----
+
+    public function design(Menu $menu): JsonResponse
+    {
+        return response()->json([
+            'id'     => $menu->id,
+            'title'  => $menu->title,
+            'design' => $menu->design,
+        ]);
+    }
+
+    public function updateDesign(MenuDesignRequest $request, Menu $menu): JsonResponse
+    {
+        $menu->update(['design' => $request->validated('design')]);
+
+        return response()->json([
+            'message' => 'Menu design saved successfully.',
+            'design'  => $menu->design,
+        ]);
+    }
+
+    public function uploadLogo(Request $request, Menu $menu): JsonResponse
+    {
+        $request->validate([
+            'logo' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:2048'], // 2 MB
+        ]);
+
+        $file = $request->file('logo');
+        $base = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'logo';
+        $name = $base . '-' . time() . '.' . $file->guessExtension();
+
+        // public/frontend/<file name>
+        $file->move(public_path('frontend'), $name);
+
+        return response()->json([
+            'message' => 'Logo uploaded successfully.',
+            'url'     => '/frontend/' . $name,
+        ], 201);
     }
 }

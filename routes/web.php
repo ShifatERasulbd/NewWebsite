@@ -32,6 +32,9 @@ Route::prefix('api')->group(function () {
         // New Menu Routes
         Route::apiResource('menus', MenuController::class);
         Route::post('menus/reorder', [MenuController::class, 'reorder']);
+        Route::get('menus/{menu}/design', [MenuController::class, 'design']);
+        Route::put('menus/{menu}/design', [MenuController::class, 'updateDesign']);
+        Route::post('menus/{menu}/logo', [MenuController::class, 'uploadLogo']);
 
         // menu items
         Route::post('menu-items/reorder', [MenuItemsController::class, 'reorder']);

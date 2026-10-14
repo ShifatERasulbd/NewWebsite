@@ -183,6 +183,7 @@ export default function MenuItems() {
           onEdit={(id) => navigate(`/menus/${menuId}/items/${id}/edit`)}
           onRequestDelete={setItemToDelete}
           onReorder={handleReorder}
+          onDesign={() => navigate(`/menus/${menuId}/design`)}
           deletingId={deletingId}
         />
       )}

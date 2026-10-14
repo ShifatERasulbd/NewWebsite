@@ -1,4 +1,4 @@
-import { GripVertical, ListPlus, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { GripVertical, ListPlus, Paintbrush, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/backend/components/ui/button';
@@ -49,6 +49,7 @@ export function MenuItemTable({
   onEdit,
   onRequestDelete,
   onReorder, // (draggedId, targetId, deltaX)
+  onDesign,
   deletingId = null,
   canCreate = true,
   canUpdate = true,
@@ -79,42 +80,36 @@ export function MenuItemTable({
 
   return (
     <Card>
-    
-    <CardHeader className="space-y-2">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <div className="relative min-w-0 flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search menu items..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9"
-          />
+      <CardHeader className="space-y-2">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="relative min-w-0 flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search menu items..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9"
+            />
+          </div>
+
+          <Button variant="outline" size="sm" onClick={() => onDesign?.()}>
+            <Paintbrush className="mr-2 h-4 w-4" />
+            Design
+          </Button>
+
+          {canCreate && (
+            <Button onClick={() => onAdd?.()} size="sm">
+              <Plus className="mr-2 h-4 w-4" />
+              Add Menu Item
+            </Button>
+          )}
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onDesign?.()}
-        >
-         
-          Design
-        </Button>
-
-        {canCreate && (
-          <Button onClick={() => onAdd?.()} size="sm">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Menu Item
-          </Button>
-        )}
-      </div>
-
-      <p className="text-xs text-muted-foreground">
-        Drag a row up/down to reorder. Drag it right to nest under the item above (or drop it on
-        another row while dragging right). Drag it left to move it out one level.
-      </p>
-    </CardHeader>
-
+        <p className="text-xs text-muted-foreground">
+          Drag a row up/down to reorder. Drag it right to nest under the item above (or drop it on
+          another row while dragging right). Drag it left to move it out one level.
+        </p>
+      </CardHeader>
 
       <CardContent>
         {!search && items.length === 0 ? (

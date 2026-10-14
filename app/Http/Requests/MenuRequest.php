@@ -17,7 +17,6 @@ class MenuRequest extends FormRequest
 
         return [
             'title'  => 'required|string|max:255',
-            // 'url'    => 'required|string|max:255',
             'status' => 'required|in:draft,published',
         ];
     }

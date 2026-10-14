@@ -13,11 +13,10 @@ class MenuRequest extends FormRequest
 
     public function rules(): array
     {
-        $id = $this->route('menu')?->id;
-
         return [
-            'title'  => 'required|string|max:255',
-            'status' => 'required|in:draft,published',
+            'items'          => 'required|array',
+            'items.*.id'     => 'required|exists:menus,id',
+            'items.*.order'  => 'required|integer',
         ];
     }
 }

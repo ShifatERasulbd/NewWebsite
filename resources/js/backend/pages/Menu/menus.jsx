@@ -15,7 +15,7 @@ import {
 } from '@/backend/components/ui/alert-dialog';
 import { useAppContext } from '@/backend/context/AppContext';
 
-import { deleteMenu, fetchMenus } from './api';
+import { deleteMenu, fetchMenus, reorderMenus } from './api';
 
 export default function Menus() {
   const navigate = useNavigate();
@@ -60,6 +60,27 @@ export default function Menus() {
     };
   }, []);
 
+  const handleReorder = async (newMenus) => {
+    // Optimistically update UI first
+    setMenus(newMenus);
+
+    // Map to payload format with updated index orders
+    const payloadItems = newMenus.map((menu, index) => ({
+      id: menu.id,
+      order: index + 1,
+    }));
+
+    try {
+      await reorderMenus(payloadItems);
+      toast.success('Menu order updated successfully.', { style: { color: '#16a34a' } });
+    } catch (error) {
+      toast.error(error.message || 'Failed to update menu order.', { style: { color: '#dc2626' } });
+      // Revert if failed (optional: re-fetch menus)
+      const data = await fetchMenus();
+      setMenus(Array.isArray(data) ? data : []);
+    }
+  };
+
   const handleConfirmDelete = async () => {
     if (!menuToDelete) return;
     const id = menuToDelete.id;
@@ -91,6 +112,7 @@ export default function Menus() {
         onAdd={() => navigate('/menus/add')}
         onEdit={(id) => navigate(`/menus/${id}/edit`)}
         onRequestDelete={setMenuToDelete}
+        onReorder={handleReorder}
         deletingId={deletingId}
       />
 

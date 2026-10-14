@@ -4,7 +4,7 @@ import {
     LogOut,
     Users,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import {
@@ -29,20 +29,9 @@ import {
     SidebarMenuSubItem,
 } from '@/backend/components/ui/sidebar';
 import { useAppContext } from '@/backend/context/AppContext';
+import { fetchMenus } from '@/backend/pages/Menu/api';
 
-const homeItems = [
-    { title: 'Dashboard', icon: Gauge, path: '/dashboard' },
-    { title: 'Pages', icon: Gauge, path: '/pages' },
-    {
-        title: 'Menus',
-        icon: Gauge,
-        path: '/menus',
-        items: [
-            { title: 'Header Menu', path: '/menus/header' },
-            { title: 'Footer Menu', path: '/menus/footer' },
-        ],
-    },
-];
+const getMenuPath = (menu) => `/menus/${menu.id}`;
 
 const userAccessItems = [
     { title: 'Users', icon: Users, path: '/users' },
@@ -53,6 +42,55 @@ export function AppSidebar(props) {
     const location = useLocation();
     useAppContext();
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [menus, setMenus] = useState([]);
+    const [isMenusLoading, setIsMenusLoading] = useState(true);
+
+    // Fetch the created menus
+    useEffect(() => {
+        let ignore = false;
+
+        async function loadMenus() {
+            setIsMenusLoading(true);
+
+            try {
+                const data = await fetchMenus();
+                if (!ignore) {
+                    setMenus(Array.isArray(data) ? data : []);
+                }
+            } catch (error) {
+                if (!ignore) {
+                    setMenus([]);
+                }
+            } finally {
+                if (!ignore) {
+                    setIsMenusLoading(false);
+                }
+            }
+        }
+
+        loadMenus();
+
+        return () => {
+            ignore = true;
+        };
+    }, []);
+
+    const homeItems = useMemo(
+        () => [
+            { title: 'Dashboard', icon: Gauge, path: '/dashboard' },
+            { title: 'Pages', icon: Gauge, path: '/pages' },
+            {
+                title: 'Menus',
+                icon: Gauge,
+                path: '/menus',
+                items: menus.map((menu) => ({
+                    title: menu.title,
+                    path: getMenuPath(menu),
+                })),
+            },
+        ],
+        [menus],
+    );
 
     const visibleHomeItems = homeItems;
     const visibleUserAccessItems = userAccessItems;
@@ -103,7 +141,7 @@ export function AppSidebar(props) {
                         <SidebarGroupContent>
                             <SidebarMenu>
                                 {visibleHomeItems.map((item) => {
-                                    const hasSubItems = item.items && item.items.length > 0;
+                                    const hasSubItems = Array.isArray(item.items);
                                     const isSubActive =
                                         hasSubItems &&
                                         item.items.some((sub) => location.pathname === sub.path);
@@ -156,18 +194,26 @@ export function AppSidebar(props) {
 
                                                 <CollapsibleContent>
                                                     <SidebarMenuSub>
-                                                        {item.items.map((subItem) => (
-                                                            <SidebarMenuSubItem key={subItem.title}>
-                                                                <SidebarMenuSubButton
-                                                                    asChild
-                                                                    isActive={location.pathname === subItem.path}
-                                                                >
-                                                                    <Link to={subItem.path}>
-                                                                        <span>{subItem.title}</span>
-                                                                    </Link>
-                                                                </SidebarMenuSubButton>
+                                                        {item.items.length === 0 ? (
+                                                            <SidebarMenuSubItem>
+                                                                <span className="px-2 py-1 text-xs text-sidebar-foreground/60">
+                                                                    {isMenusLoading ? 'Loading...' : 'No menus yet'}
+                                                                </span>
                                                             </SidebarMenuSubItem>
-                                                        ))}
+                                                        ) : (
+                                                            item.items.map((subItem) => (
+                                                                <SidebarMenuSubItem key={subItem.path}>
+                                                                    <SidebarMenuSubButton
+                                                                        asChild
+                                                                        isActive={location.pathname === subItem.path}
+                                                                    >
+                                                                        <Link to={subItem.path}>
+                                                                            <span>{subItem.title}</span>
+                                                                        </Link>
+                                                                    </SidebarMenuSubButton>
+                                                                </SidebarMenuSubItem>
+                                                            ))
+                                                        )}
                                                     </SidebarMenuSub>
                                                 </CollapsibleContent>
                                             </SidebarMenuItem>

@@ -1,4 +1,4 @@
-import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { GripVertical, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/backend/components/ui/button';
@@ -47,6 +47,7 @@ export function MenuTable({
   onAdd,
   onEdit,
   onRequestDelete,
+  onReorder,
   deletingId = null,
   canCreate = true,
   canUpdate = true,
@@ -54,11 +55,36 @@ export function MenuTable({
 }) {
   const showActionColumn = canUpdate || canDelete;
   const [search, setSearch] = useState('');
+  const [draggedIndex, setDraggedIndex] = useState(null);
 
   const filtered = menus.filter((m) => {
     const q = search.toLowerCase();
-    return m.title?.toLowerCase().includes(q) ;
+    return m.title?.toLowerCase().includes(q);
   });
+
+  const handleDragStart = (e, index) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e, targetIndex) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === targetIndex) return;
+
+    const updatedMenus = [...menus];
+    const [movedItem] = updatedMenus.splice(draggedIndex, 1);
+    updatedMenus.splice(targetIndex, 0, movedItem);
+
+    setDraggedIndex(null);
+    if (onReorder) {
+      onReorder(updatedMenus);
+    }
+  };
 
   return (
     <Card>
@@ -95,17 +121,26 @@ export function MenuTable({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10"></TableHead>
                 <TableHead>Title</TableHead>
-               
                 <TableHead>Status</TableHead>
                 {showActionColumn && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((menu) => (
-                <TableRow key={menu.id}>
+              {filtered.map((menu, index) => (
+                <TableRow
+                  key={menu.id}
+                  draggable={!search} // Disable drag when searching to avoid index mismatch
+                  onDragStart={(e) => handleDragStart(e, index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDrop={(e) => handleDrop(e, index)}
+                  className={!search ? 'cursor-grab active:cursor-grabbing' : ''}
+                >
+                  <TableCell className="w-10 text-muted-foreground">
+                    {!search && <GripVertical className="h-4 w-4" />}
+                  </TableCell>
                   <TableCell className="font-medium">{menu.title}</TableCell>
-                  
                   <TableCell>
                     <span
                       className={`inline-block rounded px-2 py-1 text-xs ${

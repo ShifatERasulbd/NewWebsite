@@ -34,43 +34,20 @@ async function requestJson(url, options = {}) {
     return payload;
 }
 
-// --- Page API Endpoints ---
-export async function fetchPages() {
-    const payload = await requestJson('/api/pages');
-    return Array.isArray(payload) ? payload : [];
-}
 
-export async function fetchPage(id) {
-    return requestJson(`/api/pages/${id}`);
-}
-
-export async function createPage(data) {
-    await ensureCsrfCookie();
-    return requestJson('/api/pages', {
-        method: 'POST',
-        body: JSON.stringify(data),
-    });
-}
-
-export async function updatePage(id, data) {
-    await ensureCsrfCookie();
-    return requestJson(`/api/pages/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-    });
-}
-
-export async function deletePage(id) {
-    await ensureCsrfCookie();
-    return requestJson(`/api/pages/${id}`, {
-        method: 'DELETE',
-    });
-}
 
 // --- Menu API Endpoints ---
 export async function fetchMenus() {
     const payload = await requestJson('/api/menus');
     return Array.isArray(payload) ? payload : [];
+}
+
+export async function reorderMenus(items) {
+    await ensureCsrfCookie();
+    return requestJson('/api/menus/reorder', {
+        method: 'POST',
+        body: JSON.stringify({ items }),
+    });
 }
 
 export async function fetchMenu(id) {

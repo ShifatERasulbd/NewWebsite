@@ -30,6 +30,7 @@ Route::prefix('api')->group(function () {
 
         // New Menu Routes
         Route::apiResource('menus', MenuController::class);
+        Route::post('menus/reorder', [MenuController::class, 'reorder']);
     });
 });
 

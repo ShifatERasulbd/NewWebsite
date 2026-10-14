@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\MenuRequest;
 use App\Models\Menu;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class MenuController extends Controller
 {
@@ -13,7 +14,7 @@ class MenuController extends Controller
      */
     public function index(): JsonResponse
     {
-        $menus = Menu::latest()->get();
+        $menus = Menu::orderBy('order')->get();
         return response()->json($menus);
     }
 
@@ -30,12 +31,18 @@ class MenuController extends Controller
         ], 201);
     }
 
-    /**
-     * Display the specified resource.
+   /**
+     * Reorder resources in storage.
      */
-    public function show(Menu $menu): JsonResponse
+    public function reorder(MenuRequest $request): JsonResponse
     {
-        return response()->json($menu);
+        foreach ($request->validated('items') as $item) {
+            Menu::where('id', $item['id'])->update(['order' => $item['order']]);
+        }
+
+        return response()->json([
+            'message' => 'Menus reordered successfully.',
+        ]);
     }
 
     /**

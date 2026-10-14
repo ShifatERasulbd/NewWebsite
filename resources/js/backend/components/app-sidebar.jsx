@@ -1,4 +1,5 @@
 import {
+    ChevronRight,
     Gauge,
     LogOut,
     Users,
@@ -6,6 +7,11 @@ import {
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/backend/components/ui/collapsible';
 import {
     Sidebar,
     SidebarContent,
@@ -15,20 +21,32 @@ import {
     SidebarGroupLabel,
     SidebarHeader,
     SidebarMenu,
+    SidebarMenuAction,
     SidebarMenuButton,
     SidebarMenuItem,
+    SidebarMenuSub,
+    SidebarMenuSubButton,
+    SidebarMenuSubItem,
 } from '@/backend/components/ui/sidebar';
 import { useAppContext } from '@/backend/context/AppContext';
 
 const homeItems = [
     { title: 'Dashboard', icon: Gauge, path: '/dashboard' },
-    { title: 'Pages', icon: Gauge, path: '/pages'},
+    { title: 'Pages', icon: Gauge, path: '/pages' },
+    {
+        title: 'Menus',
+        icon: Gauge,
+        path: '/menus',
+        items: [
+            { title: 'Header Menu', path: '/menus/header' },
+            { title: 'Footer Menu', path: '/menus/footer' },
+        ],
+    },
 ];
 
 const userAccessItems = [
     { title: 'Users', icon: Users, path: '/users' },
 ];
-
 
 export function AppSidebar(props) {
     const navigate = useNavigate();
@@ -84,26 +102,82 @@ export function AppSidebar(props) {
                         <SidebarGroupLabel>Home</SidebarGroupLabel>
                         <SidebarGroupContent>
                             <SidebarMenu>
-                                {visibleHomeItems.map((item) => (
-                                    <SidebarMenuItem key={item.title}>
-                                        <SidebarMenuButton
+                                {visibleHomeItems.map((item) => {
+                                    const hasSubItems = item.items && item.items.length > 0;
+                                    const isSubActive =
+                                        hasSubItems &&
+                                        item.items.some((sub) => location.pathname === sub.path);
+                                    const isParentActive = location.pathname === item.path;
+
+                                    if (!hasSubItems) {
+                                        return (
+                                            <SidebarMenuItem key={item.title}>
+                                                <SidebarMenuButton
+                                                    asChild
+                                                    tooltip={item.title}
+                                                    isActive={isParentActive}
+                                                >
+                                                    <Link to={item.path}>
+                                                        <item.icon />
+                                                        <span>{item.title}</span>
+                                                    </Link>
+                                                </SidebarMenuButton>
+                                            </SidebarMenuItem>
+                                        );
+                                    }
+
+                                    return (
+                                        <Collapsible
+                                            key={item.title}
                                             asChild
-                                            tooltip={item.title}
-                                            isActive={location.pathname === item.path}
+                                            defaultOpen={isSubActive || isParentActive}
+                                            className="group/collapsible"
                                         >
-                                            <Link to={item.path}>
-                                                <item.icon />
-                                                <span>{item.title}</span>
-                                            </Link>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
-                                ))}
+                                            <SidebarMenuItem>
+                                                {/* Text + icon → navigates */}
+                                                <SidebarMenuButton
+                                                    asChild
+                                                    tooltip={item.title}
+                                                    isActive={isParentActive}
+                                                >
+                                                    <Link to={item.path}>
+                                                        <item.icon />
+                                                        <span>{item.title}</span>
+                                                    </Link>
+                                                </SidebarMenuButton>
+
+                                                {/* Chevron → toggles only */}
+                                                <CollapsibleTrigger asChild>
+                                                    <SidebarMenuAction className="data-[state=open]:rotate-90">
+                                                        <ChevronRight />
+                                                        <span className="sr-only">Toggle {item.title}</span>
+                                                    </SidebarMenuAction>
+                                                </CollapsibleTrigger>
+
+                                                <CollapsibleContent>
+                                                    <SidebarMenuSub>
+                                                        {item.items.map((subItem) => (
+                                                            <SidebarMenuSubItem key={subItem.title}>
+                                                                <SidebarMenuSubButton
+                                                                    asChild
+                                                                    isActive={location.pathname === subItem.path}
+                                                                >
+                                                                    <Link to={subItem.path}>
+                                                                        <span>{subItem.title}</span>
+                                                                    </Link>
+                                                                </SidebarMenuSubButton>
+                                                            </SidebarMenuSubItem>
+                                                        ))}
+                                                    </SidebarMenuSub>
+                                                </CollapsibleContent>
+                                            </SidebarMenuItem>
+                                        </Collapsible>
+                                    );
+                                })}
                             </SidebarMenu>
                         </SidebarGroupContent>
                     </SidebarGroup>
                 )}
-
-              
 
                 {/* user access */}
                 {visibleUserAccessItems.length > 0 && (
@@ -129,9 +203,6 @@ export function AppSidebar(props) {
                         </SidebarGroupContent>
                     </SidebarGroup>
                 )}
-
-
-                
             </SidebarContent>
 
             <SidebarFooter className="border-t border-sidebar-border">

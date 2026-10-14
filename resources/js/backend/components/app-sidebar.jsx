@@ -33,6 +33,10 @@ import { fetchMenus } from '@/backend/pages/Menu/api';
 
 const getMenuPath = (menu) => `/menus/${menu.id}`;
 
+// Active on the exact path or any nested path (e.g. /menus/1/items/add)
+const isPathActive = (pathname, path) =>
+    pathname === path || pathname.startsWith(`${path}/`);
+
 const userAccessItems = [
     { title: 'Users', icon: Users, path: '/users' },
 ];
@@ -144,7 +148,10 @@ export function AppSidebar(props) {
                                     const hasSubItems = Array.isArray(item.items);
                                     const isSubActive =
                                         hasSubItems &&
-                                        item.items.some((sub) => location.pathname === sub.path);
+                                        item.items.some((sub) =>
+                                            isPathActive(location.pathname, sub.path),
+                                        );
+                                    // Parent is active only on its own page, not on child menu pages
                                     const isParentActive = location.pathname === item.path;
 
                                     if (!hasSubItems) {
@@ -205,7 +212,10 @@ export function AppSidebar(props) {
                                                                 <SidebarMenuSubItem key={subItem.path}>
                                                                     <SidebarMenuSubButton
                                                                         asChild
-                                                                        isActive={location.pathname === subItem.path}
+                                                                        isActive={isPathActive(
+                                                                            location.pathname,
+                                                                            subItem.path,
+                                                                        )}
                                                                     >
                                                                         <Link to={subItem.path}>
                                                                             <span>{subItem.title}</span>

@@ -6,6 +6,7 @@ use App\Http\Controllers\PageController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MenuController;
+use App\Http\Controllers\MenuItemsController;
 
 // root -> admin
 Route::redirect('/', '/admin');
@@ -31,6 +32,10 @@ Route::prefix('api')->group(function () {
         // New Menu Routes
         Route::apiResource('menus', MenuController::class);
         Route::post('menus/reorder', [MenuController::class, 'reorder']);
+
+        // menu items
+        Route::post('menu-items/reorder', [MenuItemsController::class, 'reorder']);
+        Route::apiResource('menu-items', MenuItemsController::class);
     });
 });
 

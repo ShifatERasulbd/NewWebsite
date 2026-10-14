@@ -48,6 +48,11 @@ const Menus = lazyWithRetry(() => import('@/backend/pages/Menu/menus'), 'menus')
 const AddMenu = lazyWithRetry(() => import('@/backend/pages/Menu/addMenu'), 'menu-add');
 const EditMenu = lazyWithRetry(() => import('@/backend/pages/Menu/editMenu'), 'pages-edit');
 
+// menu items route
+const MenuItems = lazyWithRetry(() => import('@/backend/pages/Menu-items/menuItems'), 'menu-items');
+const AddMenuItem = lazyWithRetry(() => import('@/backend/pages/Menu-items/addMenuItems'), 'menu-items-add');
+const EditMenuItem = lazyWithRetry(() => import('@/backend/pages/Menu-items/editMenuItems'), 'menu-items-edit');
+
 function AuthScreen({ children }) {
     return (
         <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-10 text-foreground">
@@ -121,6 +126,11 @@ export default function App() {
                             <Route path="/menus" element={<Menus />} />
                             <Route path="/menus/add" element={<AddMenu />} />
                             <Route path="/menus/:id/edit" element={<EditMenu />} />
+
+                            {/* Menu items (per menu) */}
+                            <Route path="/menus/:menuId" element={<MenuItems />} />
+                            <Route path="/menus/:menuId/items/add" element={<AddMenuItem />} />
+                            <Route path="/menus/:menuId/items/:id/edit" element={<EditMenuItem />} />
                         </Route>
                     </Routes>
                 </Suspense>

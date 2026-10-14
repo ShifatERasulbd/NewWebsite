@@ -11,9 +11,13 @@ import { Input } from '@/backend/components/ui/input';
 import { Label } from '@/backend/components/ui/label';
 import { Separator } from '@/backend/components/ui/separator';
 
+const selectClass =
+    'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60';
+
 export default function EditMenuItemForm({
     form = {},
     menus = [],
+    pages = [],
     parentItems = [],
     onChange,
     onSubmit,
@@ -21,27 +25,30 @@ export default function EditMenuItemForm({
     isSubmitting = false,
     errors = {},
 }) {
+    const hasPage = Boolean(form.page_id);
+
     return (
         <Card>
             <CardHeader>
                 <CardTitle>Edit Menu Item</CardTitle>
                 <CardDescription>
-                    Update menu item properties, component ID reference, and hierarchy.
+                    Update the menu item, its linked page and its position in the hierarchy.
                 </CardDescription>
             </CardHeader>
             <Separator />
 
             <form onSubmit={onSubmit}>
                 <CardContent className="space-y-6 pt-6">
-                    {/* Menu Container */}
+                    {/* Menu (fixed by the route) */}
                     <div className="space-y-2">
-                        <Label htmlFor="menu_id">Parent Menu Container</Label>
+                        <Label htmlFor="menu_id">Menu</Label>
                         <select
                             id="menu_id"
                             name="menu_id"
                             value={form.menu_id || ''}
                             onChange={onChange}
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                            disabled
+                            className={selectClass}
                         >
                             <option value="">Select Menu</option>
                             {menus.map((m) => (
@@ -53,6 +60,46 @@ export default function EditMenuItemForm({
                         {errors.menu_id && <p className="text-xs text-destructive">{errors.menu_id[0]}</p>}
                     </div>
 
+                    {/* Parent item */}
+                    <div className="space-y-2">
+                        <Label htmlFor="parent_id">Parent Item (Max 5 Levels Deep)</Label>
+                        <select
+                            id="parent_id"
+                            name="parent_id"
+                            value={form.parent_id || ''}
+                            onChange={onChange}
+                            className={selectClass}
+                        >
+                            <option value="">None (top level)</option>
+                            {parentItems.map((item) => (
+                                <option key={item.id} value={item.id}>
+                                    {item.title}
+                                </option>
+                            ))}
+                        </select>
+                        {errors.parent_id && <p className="text-xs text-destructive">{errors.parent_id[0]}</p>}
+                    </div>
+
+                    {/* Page */}
+                    <div className="space-y-2">
+                        <Label htmlFor="page_id">Page</Label>
+                        <select
+                            id="page_id"
+                            name="page_id"
+                            value={form.page_id || ''}
+                            onChange={onChange}
+                            className={selectClass}
+                        >
+                            <option value="">None (custom URL)</option>
+                            {pages.map((page) => (
+                                <option key={page.id} value={page.id}>
+                                    {page.title}
+                                </option>
+                            ))}
+                        </select>
+                        {errors.page_id && <p className="text-xs text-destructive">{errors.page_id[0]}</p>}
+                    </div>
+
                     {/* Title */}
                     <div className="space-y-2">
                         <Label htmlFor="title">Title</Label>
@@ -61,55 +108,23 @@ export default function EditMenuItemForm({
                             name="title"
                             value={form.title || ''}
                             onChange={onChange}
-                            placeholder="e.g. Getting Started"
+                            placeholder="e.g. About Us"
                         />
                         {errors.title && <p className="text-xs text-destructive">{errors.title[0]}</p>}
                     </div>
 
-                    {/* Component ID */}
-                    <div className="space-y-2">
-                        <Label htmlFor="component_id">Component ID Reference</Label>
-                        <Input
-                            id="component_id"
-                            name="component_id"
-                            value={form.component_id || ''}
-                            onChange={onChange}
-                            placeholder="e.g. HeroSection, DocContent"
-                        />
-                        {errors.component_id && <p className="text-xs text-destructive">{errors.component_id[0]}</p>}
-                    </div>
-
                     {/* URL */}
                     <div className="space-y-2">
-                        <Label htmlFor="url">URL</Label>
+                        <Label htmlFor="url">{hasPage ? 'URL (from page slug)' : 'URL'}</Label>
                         <Input
                             id="url"
                             name="url"
                             value={form.url || ''}
                             onChange={onChange}
-                            placeholder="e.g. /docs/getting-started"
+                            readOnly={hasPage}
+                            placeholder={hasPage ? '' : 'e.g. /contact or https://example.com'}
                         />
                         {errors.url && <p className="text-xs text-destructive">{errors.url[0]}</p>}
-                    </div>
-
-                    {/* Parent Menu Item (Nesting up to 5 steps) */}
-                    <div className="space-y-2">
-                        <Label htmlFor="parent_id">Parent Menu Item (Max 5 Steps Deep)</Label>
-                        <select
-                            id="parent_id"
-                            name="parent_id"
-                            value={form.parent_id || ''}
-                            onChange={onChange}
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                        >
-                            <option value="">None (Root Level Item)</option>
-                            {parentItems.map((item) => (
-                                <option key={item.id} value={item.id}>
-                                    {item.title}
-                                </option>
-                            ))}
-                        </select>
-                        {errors.parent_id && <p className="text-xs text-destructive">{errors.parent_id[0]}</p>}
                     </div>
 
                     {/* Status */}
@@ -120,7 +135,7 @@ export default function EditMenuItemForm({
                             name="status"
                             value={form.status || 'published'}
                             onChange={onChange}
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                            className={selectClass}
                         >
                             <option value="published">Published</option>
                             <option value="draft">Draft</option>

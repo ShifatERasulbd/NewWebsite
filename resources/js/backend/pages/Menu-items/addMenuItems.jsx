@@ -5,9 +5,13 @@ import { toast } from 'sonner';
 import AddMenuItemForm from '@/backend/components/menu-items/addForm';
 import { useAppContext } from '@/backend/context/AppContext';
 import { fetchMenus } from '@/backend/pages/Menu/api';
+import { fetchPages } from '@/backend/pages/Page/api';
 
 import { createMenuItem, fetchMenuItems } from './api';
 import { toParentOptions } from './utils';
+
+// Build the menu item URL from a page slug
+const buildUrl = (slug) => (slug ? `/${String(slug).replace(/^\/+/, '')}` : '');
 
 export default function AddMenuItem() {
     const { menuId } = useParams();
@@ -17,12 +21,14 @@ export default function AddMenuItem() {
 
     const [form, setForm] = useState({
         menu_id: String(menuId),
-       
+        parent_id: searchParams.get('parent_id') || '',
+        page_id: '',
         title: '',
-       
+        url: '',
         status: 'published',
     });
     const [menus, setMenus] = useState([]);
+    const [pages, setPages] = useState([]);
     const [parentItems, setParentItems] = useState([]);
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,10 +45,16 @@ export default function AddMenuItem() {
 
         async function loadOptions() {
             try {
-                const [menuData, itemData] = await Promise.all([fetchMenus(), fetchMenuItems(menuId)]);
+                const [menuData, itemData, pageData] = await Promise.all([
+                    fetchMenus(),
+                    fetchMenuItems(menuId),
+                    fetchPages(),
+                ]);
+
                 if (!ignore) {
                     setMenus(Array.isArray(menuData) ? menuData : []);
                     setParentItems(toParentOptions(itemData));
+                    setPages(Array.isArray(pageData) ? pageData : pageData?.data || []);
                 }
             } catch {
                 if (!ignore) {
@@ -58,16 +70,35 @@ export default function AddMenuItem() {
         };
     }, [menuId]);
 
-    const handleChange = (event) => {
-        const { name, value } = event.target;
-        setForm((previous) => ({ ...previous, [name]: value }));
-
+    const clearError = (name) =>
         setErrors((previous) => {
             if (!previous[name]) return previous;
             const next = { ...previous };
             delete next[name];
             return next;
         });
+
+    const handleChange = (event) => {
+        const { name, value } = event.target;
+
+        // Selecting a page fills the URL from its slug (and the title if empty)
+        if (name === 'page_id') {
+            const page = pages.find((p) => String(p.id) === String(value));
+
+            setForm((previous) => ({
+                ...previous,
+                page_id: value,
+                url: page ? buildUrl(page.slug) : '',
+                title: previous.title || page?.title || '',
+            }));
+            clearError('page_id');
+            clearError('url');
+            clearError('title');
+            return;
+        }
+
+        setForm((previous) => ({ ...previous, [name]: value }));
+        clearError(name);
     };
 
     const handleSubmit = async (event) => {
@@ -78,11 +109,12 @@ export default function AddMenuItem() {
 
         try {
             await createMenuItem({
-                ...form,
                 menu_id: Number(menuId),
-                
+                parent_id: form.parent_id ? Number(form.parent_id) : null,
+                page_id: form.page_id ? Number(form.page_id) : null,
                 title: form.title.trim(),
-                status: form.status
+                url: form.url.trim() || null,
+                status: form.status,
             });
 
             toast.success('Menu item created successfully.', { style: { color: '#16a34a' } });
@@ -109,6 +141,7 @@ export default function AddMenuItem() {
                 <AddMenuItemForm
                     form={form}
                     menus={menus}
+                    pages={pages}
                     parentItems={parentItems}
                     onChange={handleChange}
                     onSubmit={handleSubmit}

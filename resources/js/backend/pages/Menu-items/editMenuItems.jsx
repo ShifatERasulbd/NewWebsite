@@ -5,15 +5,19 @@ import { toast } from 'sonner';
 import EditMenuItemForm from '@/backend/components/menu-items/editForm';
 import { useAppContext } from '@/backend/context/AppContext';
 import { fetchMenus } from '@/backend/pages/Menu/api';
+import { fetchPages } from '@/backend/pages/Page/api';
 
 import { fetchMenuItem, fetchMenuItems, updateMenuItem } from './api';
 import { removeItem, toParentOptions } from './utils';
 
+// Build the menu item URL from a page slug
+const buildUrl = (slug) => (slug ? `/${String(slug).replace(/^\/+/, '')}` : '');
+
 const initialForm = {
     menu_id: '',
     parent_id: '',
+    page_id: '',
     title: '',
-    component_id: '',
     url: '',
     status: 'published',
 };
@@ -25,6 +29,7 @@ export default function EditMenuItem() {
 
     const [form, setForm] = useState(initialForm);
     const [menus, setMenus] = useState([]);
+    const [pages, setPages] = useState([]);
     const [parentItems, setParentItems] = useState([]);
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -45,22 +50,25 @@ export default function EditMenuItem() {
             setLoadError('');
 
             try {
-                const [item, menuData, itemData] = await Promise.all([
+                const [item, menuData, itemData, pageData] = await Promise.all([
                     fetchMenuItem(id),
                     fetchMenus(),
                     fetchMenuItems(menuId),
+                    fetchPages(),
                 ]);
 
                 if (!ignore) {
                     setForm({
                         menu_id: String(item?.menu_id || menuId),
                         parent_id: item?.parent_id ? String(item.parent_id) : '',
+                        page_id: item?.page_id ? String(item.page_id) : '',
                         title: item?.title || '',
-                        component_id: item?.component_id || '',
-                        url: item?.url || '',
+                        // Use the live page slug when a page is attached
+                        url: item?.page?.slug ? buildUrl(item.page.slug) : item?.url || '',
                         status: item?.status || 'published',
                     });
                     setMenus(Array.isArray(menuData) ? menuData : []);
+                    setPages(Array.isArray(pageData) ? pageData : pageData?.data || []);
                     // Exclude this item AND its descendants to prevent circular parents
                     setParentItems(toParentOptions(removeItem(itemData, Number(id))));
                 }
@@ -82,16 +90,35 @@ export default function EditMenuItem() {
         };
     }, [id, menuId]);
 
-    const handleChange = (event) => {
-        const { name, value } = event.target;
-        setForm((previous) => ({ ...previous, [name]: value }));
-
+    const clearError = (name) =>
         setErrors((previous) => {
             if (!previous[name]) return previous;
             const next = { ...previous };
             delete next[name];
             return next;
         });
+
+    const handleChange = (event) => {
+        const { name, value } = event.target;
+
+        // Selecting a page fills the URL from its slug
+        if (name === 'page_id') {
+            const page = pages.find((p) => String(p.id) === String(value));
+
+            setForm((previous) => ({
+                ...previous,
+                page_id: value,
+                url: page ? buildUrl(page.slug) : previous.url,
+                title: previous.title || page?.title || '',
+            }));
+            clearError('page_id');
+            clearError('url');
+            clearError('title');
+            return;
+        }
+
+        setForm((previous) => ({ ...previous, [name]: value }));
+        clearError(name);
     };
 
     const handleSubmit = async (event) => {
@@ -102,12 +129,12 @@ export default function EditMenuItem() {
 
         try {
             await updateMenuItem(id, {
-                ...form,
                 menu_id: Number(menuId),
                 parent_id: form.parent_id ? Number(form.parent_id) : null,
+                page_id: form.page_id ? Number(form.page_id) : null,
                 title: form.title.trim(),
-                component_id: form.component_id.trim() || null,
                 url: form.url.trim() || null,
+                status: form.status,
             });
 
             toast.success('Menu item updated successfully.', { style: { color: '#16a34a' } });
@@ -138,6 +165,7 @@ export default function EditMenuItem() {
                 <EditMenuItemForm
                     form={form}
                     menus={menus}
+                    pages={pages}
                     parentItems={parentItems}
                     onChange={handleChange}
                     onSubmit={handleSubmit}

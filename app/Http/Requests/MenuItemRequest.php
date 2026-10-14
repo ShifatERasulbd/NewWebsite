@@ -26,6 +26,7 @@ class MenuItemRequest extends FormRequest
 
         return [
             'menu_id'      => 'required|exists:menus,id',
+            'page_id'      => 'nullable|integer|exists:pages,id',
             'title'        => 'required|string|max:255',
             'component_id' => 'nullable|string|max:255',
             'url'          => 'nullable|string|max:255',

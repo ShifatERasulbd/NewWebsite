@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\MenuItemRequest;
 use App\Models\MenuItems;
+use App\Models\Page;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -17,7 +18,7 @@ class MenuItemsController extends Controller
             $query->where('menu_id', $request->get('menu_id'));
         }
 
-        // Recursively load children up to 5 levels deep
+        // Recursively load children up to 5 levels deep (page is auto-loaded via $with)
         $items = $query->with(['children.children.children.children.children'])
             ->orderBy('order')
             ->get();
@@ -27,7 +28,8 @@ class MenuItemsController extends Controller
 
     public function store(MenuItemRequest $request): JsonResponse
     {
-        $data = $request->validated();
+        $data = $this->withPageUrl($request->validated());
+
         $maxOrder = MenuItems::where('menu_id', $data['menu_id'])
             ->where('parent_id', $data['parent_id'] ?? null)
             ->max('order') ?? 0;
@@ -37,7 +39,7 @@ class MenuItemsController extends Controller
 
         return response()->json([
             'message' => 'Menu item created successfully.',
-            'data'    => $item,
+            'data'    => $item->fresh(),
         ], 201);
     }
 
@@ -62,11 +64,11 @@ class MenuItemsController extends Controller
 
     public function update(MenuItemRequest $request, MenuItems $menuItem): JsonResponse
     {
-        $menuItem->update($request->validated());
+        $menuItem->update($this->withPageUrl($request->validated()));
 
         return response()->json([
             'message' => 'Menu item updated successfully.',
-            'data'    => $menuItem,
+            'data'    => $menuItem->fresh(),
         ]);
     }
 
@@ -77,5 +79,21 @@ class MenuItemsController extends Controller
         return response()->json([
             'message' => 'Menu item deleted successfully.',
         ]);
+    }
+
+    /**
+     * When a page is attached, the menu item URL always comes from the page slug.
+     */
+    private function withPageUrl(array $data): array
+    {
+        if (!empty($data['page_id'])) {
+            $page = Page::find($data['page_id']);
+
+            if ($page) {
+                $data['url'] = '/' . ltrim($page->slug, '/');
+            }
+        }
+
+        return $data;
     }
 }

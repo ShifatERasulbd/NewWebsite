@@ -63,7 +63,7 @@ export function MenuItemTable({
     const q = search.toLowerCase();
     return (
       item.title?.toLowerCase().includes(q) ||
-      item.component_id?.toLowerCase().includes(q) ||
+      item.page?.title?.toLowerCase().includes(q) ||
       item.url?.toLowerCase().includes(q)
     );
   });
@@ -118,7 +118,7 @@ export function MenuItemTable({
               <TableRow>
                 <TableHead className="w-10"></TableHead>
                 <TableHead>Title</TableHead>
-                <TableHead>Component ID</TableHead>
+                <TableHead>Page</TableHead>
                 <TableHead>URL</TableHead>
                 <TableHead>Status</TableHead>
                 {showActionColumn && <TableHead className="text-right">Actions</TableHead>}
@@ -154,12 +154,16 @@ export function MenuItemTable({
                       {item.title}
                     </span>
                   </TableCell>
-                  <TableCell>
-                    <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
-                      {item.component_id || '—'}
-                    </code>
+                  <TableCell className="text-muted-foreground">
+                    {item.page?.title || '—'}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{item.url || '—'}</TableCell>
+                  <TableCell>
+                    {item.url ? (
+                      <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{item.url}</code>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <span
                       className={`inline-block rounded px-2 py-1 text-xs ${

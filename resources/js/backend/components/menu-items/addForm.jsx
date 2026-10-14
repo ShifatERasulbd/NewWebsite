@@ -66,51 +66,7 @@ export default function AddMenuItemForm({
                         {errors.title && <p className="text-xs text-destructive">{errors.title[0]}</p>}
                     </div>
 
-                    {/* Component ID */}
-                    <div className="space-y-2">
-                        <Label htmlFor="component_id">Component ID Reference</Label>
-                        <Input
-                            id="component_id"
-                            name="component_id"
-                            value={form.component_id || ''}
-                            onChange={onChange}
-                            placeholder="e.g. HeroSection, DocContent"
-                        />
-                        {errors.component_id && <p className="text-xs text-destructive">{errors.component_id[0]}</p>}
-                    </div>
-
-                    {/* URL */}
-                    <div className="space-y-2">
-                        <Label htmlFor="url">URL</Label>
-                        <Input
-                            id="url"
-                            name="url"
-                            value={form.url || ''}
-                            onChange={onChange}
-                            placeholder="e.g. /docs/getting-started"
-                        />
-                        {errors.url && <p className="text-xs text-destructive">{errors.url[0]}</p>}
-                    </div>
-
-                    {/* Parent Menu Item (Nesting up to 5 steps) */}
-                    <div className="space-y-2">
-                        <Label htmlFor="parent_id">Parent Menu Item (Max 5 Steps Deep)</Label>
-                        <select
-                            id="parent_id"
-                            name="parent_id"
-                            value={form.parent_id || ''}
-                            onChange={onChange}
-                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                        >
-                            <option value="">None (Root Level Item)</option>
-                            {parentItems.map((item) => (
-                                <option key={item.id} value={item.id}>
-                                    {item.title}
-                                </option>
-                            ))}
-                        </select>
-                        {errors.parent_id && <p className="text-xs text-destructive">{errors.parent_id[0]}</p>}
-                    </div>
+                  
 
                     {/* Status */}
                     <div className="space-y-2">

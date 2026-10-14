@@ -17,10 +17,9 @@ export default function AddMenuItem() {
 
     const [form, setForm] = useState({
         menu_id: String(menuId),
-        parent_id: searchParams.get('parent_id') || '',
+       
         title: '',
-        component_id: '',
-        url: '',
+       
         status: 'published',
     });
     const [menus, setMenus] = useState([]);
@@ -81,10 +80,9 @@ export default function AddMenuItem() {
             await createMenuItem({
                 ...form,
                 menu_id: Number(menuId),
-                parent_id: form.parent_id ? Number(form.parent_id) : null,
+                
                 title: form.title.trim(),
-                component_id: form.component_id.trim() || null,
-                url: form.url.trim() || null,
+                status: form.status
             });
 
             toast.success('Menu item created successfully.', { style: { color: '#16a34a' } });

@@ -8,10 +8,15 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\MenuItemsController;
 
-// root -> admin
-Route::redirect('/', '/admin');
+// 1. Root directory serves the public frontend view (with header and footer)
+Route::get('/', function () {
+    return view('frontend'); // Change 'frontend' to whatever blade file holds your public layout
+});
 
-// API (unchanged)
+// Optional: If you have public pages like dynamic frontend pages, you can add them here:
+// Route::get('/{slug}', [FrontendController::class, 'show']);
+
+// API routes (unchanged)
 Route::prefix('api')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:6,1');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
@@ -49,6 +54,6 @@ Route::prefix('admin')->group(function () {
     Route::get('/forgot-password', fn () => view('app'))->name('password.request');
     Route::get('/reset-password/{token}', fn () => view('app'))->name('password.reset');
 
-    // catch-all for React Router (keep LAST)
+    // catch-all for React Router inside admin (keep LAST)
     Route::get('/{path}', fn () => view('app'))->where('path', '.*');
 });

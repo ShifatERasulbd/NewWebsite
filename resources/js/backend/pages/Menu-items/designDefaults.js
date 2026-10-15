@@ -29,6 +29,8 @@ export function getDefaultDesign(variant = 'header') {
             borderBottom: true,
             borderWidth: 1,
             columns: 4,
+            footerHeight: 0, // desktop: 0 = auto; otherwise min-height of the footer body in px
+            footerHeightMobile: 0, // mobile: same, saved separately
         },
         logo: { type: 'text', text: 'AVANT', imageUrl: '', height: 32 },
         colors: {
@@ -54,7 +56,13 @@ export function getDefaultDesign(variant = 'header') {
         mobile: { breakpoint: 768, burgerPosition: 'right' },
         blocks: [],
         positions: {},
-        footer: { copyright: `© ${new Date().getFullYear()} AVANT. All rights reserved.` },
+        positionsMobile: {},
+        footer: {
+            copyright: `© ${new Date().getFullYear()} AVANT. All rights reserved.`,
+            imagesSection: { enabled: false, title: '', position: 'bottom', align: 'flex-end', height: 28, gap: 8 },
+            images: [],
+            blocks: [],
+        },
     };
 }
 
@@ -88,15 +96,16 @@ export function setIn(obj, path, value) {
     return { ...obj, [head]: setIn(obj[head] || {}, rest.join('.'), value) };
 }
 
-// Free-placement offsets saved by drag and drop: { [partId]: { x, y } } in px from the header's top-left
-export function getPositions(design) {
-    const value = design.positions;
+// Free-placement offsets saved by drag and drop: { [partId]: { x, y } } in px from the header's top-left.
+// Desktop and mobile are stored separately (positions / positionsMobile).
+export function getPositions(design, mobile = false) {
+    const value = mobile ? design.positionsMobile : design.positions;
 
     return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 }
 
 // Default flow layout (used by parts that have not been placed freely yet).
-// Parts are 'logo', 'menu', 'cta' and each block id.
+// Parts are 'logo', 'cta' and each block id. Menu items are placed from the Menu Items tab.
 export function resolveZones(design) {
     const blocks = design.blocks || [];
     const before = blocks.filter((b) => b.zone === 'before').map((b) => b.id);

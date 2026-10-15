@@ -90,7 +90,7 @@ class MenuDesignRequest extends FormRequest
             'design.blocks.*.linkedin'     => ['nullable', 'string', 'max:255'],
             'design.blocks.*.youtube'      => ['nullable', 'string', 'max:255'],
 
-            // NEW: free-placement offsets from drag & drop ({ logo: {x, y}, menu: {x, y}, <blockId>: {x, y} })
+            // Free-placement offsets from drag & drop ({ logo: {x, y}, <blockId>: {x, y}, menu-item-<id>: {x, y} })
             'design.positions'             => ['nullable', 'array', 'max:40'],
             'design.positions.*'           => ['array'],
             'design.positions.*.x'         => ['required', 'numeric', 'between:-5000,5000'],
@@ -103,7 +103,7 @@ class MenuDesignRequest extends FormRequest
             'design.footer'             => ['required', 'array'],
             'design.footer.copyright'   => ['nullable', 'string', 'max:200'],
 
-            // NEW: footer images + blocks (needed once the footer blocks/images feature is applied)
+            // Footer images + blocks
             'design.footer.imagesSection'          => ['sometimes', 'array'],
             'design.footer.imagesSection.enabled'  => ['sometimes', 'boolean'],
             'design.footer.imagesSection.title'    => ['sometimes', 'nullable', 'string', 'max:80'],
@@ -125,6 +125,7 @@ class MenuDesignRequest extends FormRequest
             'design.footer.blocks.*.span'          => ['required', 'integer', 'between:1,6'],
             'design.footer.blocks.*.x'             => ['required', 'integer', 'between:-2000,2000'],
             'design.footer.blocks.*.y'             => ['required', 'integer', 'between:-2000,2000'],
+            'design.footer.blocks.*.underLogo'     => ['sometimes', 'boolean'],
             'design.footer.blocks.*.text'          => ['nullable', 'string', 'max:1000'],
             'design.footer.blocks.*.address'       => ['nullable', 'string', 'max:200'],
             'design.footer.blocks.*.phone'         => ['nullable', 'string', 'max:40'],
@@ -134,6 +135,8 @@ class MenuDesignRequest extends FormRequest
             'design.footer.blocks.*.links'         => ['nullable', 'array', 'max:10'],
             'design.footer.blocks.*.links.*.label' => ['nullable', 'string', 'max:40'],
             'design.footer.blocks.*.links.*.url'   => $url(),
+            'design.layout.columns'      => ['nullable', 'integer', 'min:1', 'max:6'],
+            'design.layout.footerHeight' => ['nullable', 'integer', 'min:0', 'max:1000'],
         ];
     }
 }

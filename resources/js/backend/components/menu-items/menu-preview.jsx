@@ -571,22 +571,245 @@ function HeaderPreview({ design, items, mobile, onMovePart, onResetPart }) {
   );
 }
 
-function FooterPreview({ design, items, mobile, onMovePart, onResetPart }) {
+function FooterBlock({ block, design }) {
+  const { colors, typography } = design;
+  const stop = (e) => e.preventDefault();
+  const links = (block.links || []).filter((link) => link.label || link.url);
+
+  const heading = block.title ? (
+    <div
+      style={{
+        ...textStyle(design, colors.active),
+        cursor: 'default',
+        fontWeight: 700,
+        textTransform: 'uppercase',
+        letterSpacing: `${Math.max(typography.letterSpacing, 2)}px`,
+        fontSize: typography.fontSize + 2,
+        marginBottom: 18,
+      }}
+    >
+      {block.title}
+    </div>
+  ) : null;
+
+  const bodyStyle = { ...textStyle(design, colors.text), cursor: 'default', whiteSpace: 'pre-line', lineHeight: 1.6 };
+
+  if (block.type === 'menu') {
+    return (
+      <div>
+        {heading}
+        {links.length === 0 ? (
+          <span style={{ ...bodyStyle, opacity: 0.5 }}>No links yet</span>
+        ) : (
+          <ul style={{ margin: 0, padding: 0, display: 'grid', gap: 14 }}>
+            {links.map((link, index) => (
+              <li key={index} style={{ listStyle: 'none' }}>
+                <a href="#" onClick={stop} style={textStyle(design, colors.text)}>
+                  {link.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
+  }
+
+  if (block.type === 'text') {
+    return (
+      <div>
+        {heading}
+        <div style={bodyStyle}>{block.text}</div>
+      </div>
+    );
+  }
+
+  if (block.type === 'contact') {
+    return (
+      <div>
+        {heading}
+        <div style={{ display: 'grid', gap: 8 }}>
+          {block.address && <div style={bodyStyle}>{block.address}</div>}
+          {block.phone && <div style={bodyStyle}>{block.phone}</div>}
+          {block.email && <div style={bodyStyle}>{block.email}</div>}
+        </div>
+      </div>
+    );
+  }
+
+  if (block.type === 'social') {
+    const active = (block.links || []).filter((link) => link.url);
+    const shown = active.length ? active : [{ label: 'facebook' }, { label: 'instagram' }];
+
+    return (
+      <div>
+        {heading}
+        <div style={{ display: 'flex', gap: 8, opacity: active.length ? 1 : 0.4 }}>
+          {shown.map((link, index) => {
+            const badge = SOCIAL_BADGES.find(([key]) => key === String(link.label).toLowerCase())?.[1] || '•';
+
+            return (
+              <a
+                key={index}
+                href="#"
+                onClick={stop}
+                style={{
+                  width: 34,
+                  height: 34,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 6,
+                  border: `1px solid ${colors.text}`,
+                  color: colors.active,
+                  fontFamily: typography.fontFamily,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                }}
+              >
+                {badge}
+              </a>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  if (block.type === 'newsletter') {
+    return (
+      <div>
+        {heading}
+        {block.email && <div style={{ ...bodyStyle, marginBottom: 22 }}>{block.email}</div>}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            borderBottom: `1px solid ${colors.border}`,
+            paddingBottom: 10,
+          }}
+        >
+          <input
+            readOnly
+            placeholder={block.placeholder || 'Email address'}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              color: colors.text,
+              fontFamily: typography.fontFamily,
+              fontSize: typography.fontSize,
+            }}
+          />
+          <span
+            style={{
+              ...textStyle(design, colors.active),
+              cursor: 'default',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+            }}
+          >
+            {block.buttonLabel || 'Join'}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function FooterImages({ design, align }) {
+  const { footer, colors } = design;
+  const section = footer.imagesSection || {};
+  const images = (footer.images || []).filter((image) => image.url);
+
+  if (!section.enabled || images.length === 0) return null;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: align }}>
+      {section.title ? (
+        <div style={{ ...textStyle(design, colors.text), cursor: 'default', fontSize: 12, opacity: 0.8, marginBottom: 8 }}>
+          {section.title}
+        </div>
+      ) : null}
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: align, gap: section.gap ?? 8 }}>
+        {images.map((image) => (
+          <img key={image.id} src={image.url} alt={image.alt || ''} style={{ height: section.height || 28, width: 'auto' }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FooterPreview({ design, items, mobile, onMovePart, onResetPart, onResizeFooter }) {
   const { layout, colors, typography, footer } = design;
   const [selectedId, setSelectedId] = useState(null);
   const footerRef = useRef(null);
   const dragRef = useRef(null);
 
   const columns = mobile ? 1 : layout.columns;
-  const blocks = design.blocks || [];
-  const positions = getPositions(design);
+  const legacyBlocks = design.blocks || [];
+  const footerBlocks = footer.blocks || [];
+  const hasBlocks = footerBlocks.length > 0;
+  const underLogo = footerBlocks.filter((block) => block.underLogo);
+  const sideBlocks = footerBlocks.filter((block) => !block.underLogo);
+  const positions = getPositions(design, mobile);
   const editing = Boolean(onMovePart);
+
+  const section = footer.imagesSection || {};
+  const hasImages = Boolean(section.enabled) && (footer.images || []).some((image) => image.url);
+  const imagesAtTop = hasImages && section.position === 'top';
+  const imagesAtBottom = hasImages && section.position !== 'top';
 
   const measure = (el) => {
     const container = footerRef.current.getBoundingClientRect();
     const rect = el.getBoundingClientRect();
     return { x: Math.round(rect.left - container.left), y: Math.round(rect.top - container.top) };
   };
+
+  // Keep a part fully inside the footer
+  const clampPos = (pos, el) => {
+    const container = footerRef.current;
+    if (!container) return pos;
+
+    const maxX = Math.max(0, container.clientWidth - (el ? el.offsetWidth : 0));
+    const maxY = Math.max(0, container.clientHeight - (el ? el.offsetHeight : 0));
+
+    return { x: Math.min(Math.max(0, pos.x), maxX), y: Math.min(Math.max(0, pos.y), maxY) };
+  };
+
+  const footerHeight = (mobile ? layout.footerHeightMobile : layout.footerHeight) || 0;
+  const resizeRef = useRef(null);
+
+  // Drag the handle on the footer's bottom edge to change its (minimum) height
+  const resizeHandlers =
+    onResizeFooter
+      ? {
+          onPointerDown: (e) => {
+            if (e.button !== 0 || !footerRef.current) return;
+            e.preventDefault();
+            resizeRef.current = { startY: e.clientY, startHeight: footerRef.current.offsetHeight };
+            e.currentTarget.setPointerCapture(e.pointerId);
+          },
+          onPointerMove: (e) => {
+            const drag = resizeRef.current;
+            if (!drag) return;
+            const next = Math.round(drag.startHeight + (e.clientY - drag.startY));
+            onResizeFooter(Math.min(Math.max(next, 120), 1000));
+          },
+          onPointerUp: (e) => {
+            resizeRef.current = null;
+            if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+          },
+          onDoubleClick: () => onResizeFooter(0), // back to auto height
+        }
+      : null;
 
   const edit = editing
     ? {
@@ -597,6 +820,7 @@ function FooterPreview({ design, items, mobile, onMovePart, onResetPart }) {
           if (e.button !== 0 || !footerRef.current) return;
           dragRef.current = {
             id,
+            el: e.currentTarget,
             startX: e.clientX,
             startY: e.clientY,
             origin: positions[id] || measure(e.currentTarget),
@@ -610,7 +834,10 @@ function FooterPreview({ design, items, mobile, onMovePart, onResetPart }) {
           const dx = e.clientX - drag.startX;
           const dy = e.clientY - drag.startY;
           if (dx === 0 && dy === 0) return;
-          onMovePart(drag.id, { x: Math.round(drag.origin.x + dx), y: Math.round(drag.origin.y + dy) });
+          onMovePart(
+            drag.id,
+            clampPos({ x: Math.round(drag.origin.x + dx), y: Math.round(drag.origin.y + dy) }, drag.el)
+          );
         },
         end: (e) => {
           dragRef.current = null;
@@ -629,10 +856,12 @@ function FooterPreview({ design, items, mobile, onMovePart, onResetPart }) {
           if (!delta || !footerRef.current) return;
           e.preventDefault();
           const origin = positions[id] || measure(e.currentTarget);
-          onMovePart(id, { x: origin.x + delta[0], y: origin.y + delta[1] });
+          onMovePart(id, clampPos({ x: origin.x + delta[0], y: origin.y + delta[1] }, e.currentTarget));
         },
       }
     : null;
+
+  const container = layout.width === 'container' ? layout.maxWidth : '100%';
 
   return (
     <footer
@@ -645,63 +874,142 @@ function FooterPreview({ design, items, mobile, onMovePart, onResetPart }) {
         ref={footerRef}
         style={{
           position: 'relative',
-          maxWidth: layout.width === 'container' ? layout.maxWidth : '100%',
+          boxSizing: 'border-box',
+          minHeight: footerHeight > 0 ? footerHeight : undefined,
+          maxWidth: container,
           margin: '0 auto',
           padding: `32px ${layout.paddingX}px`,
         }}
       >
-        <FreePart id="logo" pos={positions['logo']} edit={edit} style={{ marginBottom: 24 }}>
-          <Logo design={design} />
-        </FreePart>
-
-        {items.length === 0 ? (
-          <p style={{ color: colors.text, opacity: 0.6, fontSize: 13 }}>
-            Add menu items to preview them here.
-          </p>
-        ) : (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-              gap: layout.itemGap,
-            }}
-          >
-            {items.map((item) => (
-              <div key={item.id} style={{ opacity: item.status === 'published' ? 1 : 0.5 }}>
-                <div style={{ ...textStyle(design, colors.text), fontWeight: 700, marginBottom: 12 }}>
-                  {item.title}
-                </div>
-                <ul style={{ margin: 0, padding: 0, display: 'grid', gap: 8 }}>
-                  {flattenItems(item.children || []).map((child) => (
-                    <li key={child.id} style={{ listStyle: 'none', paddingLeft: child.depth * 14 }}>
-                      <span style={textStyle(design, colors.text)}>{child.title}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+        {imagesAtTop && (
+          <div style={{ marginBottom: 24 }}>
+            <FooterImages design={design} align={section.align || 'flex-start'} />
           </div>
         )}
 
-        {blocks.map((block) => (
-          <FreePart key={block.id} id={block.id} pos={positions[block.id]} edit={edit} style={{ marginTop: 16 }}>
-            <Block block={block} design={design} items={items} />
-          </FreePart>
-        ))}
+        {hasBlocks ? (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: columns < 2 ? '1fr' : `1.5fr repeat(${columns - 1}, minmax(0, 1fr))`,
+              gap: layout.itemGap,
+              alignItems: 'start',
+            }}
+          >
+            <div>
+              <FreePart id="logo" pos={positions['logo']} edit={edit} style={{ marginBottom: 20 }}>
+                <Logo design={design} />
+              </FreePart>
+
+              {underLogo.map((block) => (
+                <FreePart key={block.id} id={block.id} pos={positions[block.id]} edit={edit} style={{ marginTop: 16 }}>
+                  <FooterBlock block={block} design={design} />
+                </FreePart>
+              ))}
+            </div>
+
+            {sideBlocks.map((block) => (
+              <FreePart
+                key={block.id}
+                id={block.id}
+                pos={positions[block.id]}
+                edit={edit}
+                style={{ gridColumn: `span ${Math.min(Math.max(block.span || 1, 1), columns)}` }}
+              >
+                <FooterBlock block={block} design={design} />
+              </FreePart>
+            ))}
+          </div>
+        ) : (
+          <>
+            <FreePart id="logo" pos={positions['logo']} edit={edit} style={{ marginBottom: 24 }}>
+              <Logo design={design} />
+            </FreePart>
+
+            {items.length === 0 ? (
+              <p style={{ color: colors.text, opacity: 0.6, fontSize: 13 }}>
+                Add menu items or footer blocks to preview them here.
+              </p>
+            ) : (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+                  gap: layout.itemGap,
+                }}
+              >
+                {items.map((item) => (
+                  <div key={item.id} style={{ opacity: item.status === 'published' ? 1 : 0.5 }}>
+                    <div style={{ ...textStyle(design, colors.text), fontWeight: 700, marginBottom: 12 }}>
+                      {item.title}
+                    </div>
+                    <ul style={{ margin: 0, padding: 0, display: 'grid', gap: 8 }}>
+                      {flattenItems(item.children || []).map((child) => (
+                        <li key={child.id} style={{ listStyle: 'none', paddingLeft: child.depth * 14 }}>
+                          <span style={textStyle(design, colors.text)}>{child.title}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {legacyBlocks.map((block) => (
+              <FreePart key={block.id} id={block.id} pos={positions[block.id]} edit={edit} style={{ marginTop: 16 }}>
+                <Block block={block} design={design} items={items} />
+              </FreePart>
+            ))}
+          </>
+        )}
+
+        {resizeHandlers && (
+          <div
+            {...resizeHandlers}
+            title="Drag to change footer height (double-click to reset)"
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 12,
+              cursor: 'ns-resize',
+              touchAction: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 40,
+            }}
+          >
+            <span style={{ width: 48, height: 4, borderRadius: 2, background: colors.text, opacity: 0.45 }} />
+          </div>
+        )}
       </div>
 
-      <div
-        style={{
-          borderTop: `1px solid ${colors.border}`,
-          padding: `14px ${layout.paddingX}px`,
-          textAlign: 'center',
-          color: colors.text,
-          fontFamily: typography.fontFamily,
-          fontSize: 13,
-          opacity: 0.8,
-        }}
-      >
-        {footer.copyright}
+      <div style={{ borderTop: `1px solid ${colors.border}`, padding: `14px ${layout.paddingX}px` }}>
+        <div
+          style={{
+            maxWidth: container,
+            margin: '0 auto',
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: imagesAtBottom ? 'space-between' : 'center',
+            gap: 12,
+          }}
+        >
+          <span
+            style={{
+              color: colors.text,
+              fontFamily: typography.fontFamily,
+              fontSize: 13,
+              opacity: 0.8,
+            }}
+          >
+            {footer.copyright}
+          </span>
+          {imagesAtBottom && <FooterImages design={design} align="flex-end" />}
+        </div>
       </div>
     </footer>
   );
@@ -720,7 +1028,7 @@ function Skeleton() {
   );
 }
 
-export function MenuPreview({ design, items = [], device = 'desktop', onMovePart, onResetPart }) {
+export function MenuPreview({ design, items = [], device = 'desktop', onMovePart, onResetPart, onResizeFooter }) {
   const mobile = device === 'mobile';
   const isFooter = design.variant === 'footer';
 
@@ -746,6 +1054,7 @@ export function MenuPreview({ design, items = [], device = 'desktop', onMovePart
             mobile={mobile}
             onMovePart={onMovePart}
             onResetPart={onResetPart}
+            onResizeFooter={onResizeFooter}
           />
         </>
       ) : (

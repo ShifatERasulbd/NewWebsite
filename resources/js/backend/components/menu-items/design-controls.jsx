@@ -12,6 +12,9 @@ import { flattenItems } from '@/backend/pages/Menu-items/utils';
 const selectClass =
   'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring';
 
+const textareaClass =
+  'min-h-[72px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring';
+
 const BLOCK_TYPES = [
   { label: 'Custom text', value: 'text' },
   { label: 'Phone number', value: 'phone' },
@@ -37,6 +40,79 @@ const BLOCK_DEFAULTS = {
   button: { text: 'Sign in', url: '/login', variant: 'outline' },
   'menu-items': { text: 'Menu Items ▾' },
 };
+
+// ---------- footer builder ----------
+
+const FOOTER_BLOCK_TYPES = [
+  { label: 'Link column', value: 'menu' },
+  { label: 'Text', value: 'text' },
+  { label: 'Contact', value: 'contact' },
+  { label: 'Social icons', value: 'social' },
+  { label: 'Newsletter', value: 'newsletter' },
+];
+
+const SOCIAL_PLATFORMS = [
+  { label: 'Facebook', value: 'facebook' },
+  { label: 'Instagram', value: 'instagram' },
+  { label: 'X (Twitter)', value: 'x' },
+  { label: 'LinkedIn', value: 'linkedin' },
+  { label: 'YouTube', value: 'youtube' },
+];
+
+const FOOTER_BLOCK_DEFAULTS = {
+  menu: { title: 'Shop', links: [{ label: 'Link', url: '/' }] },
+  text: { title: 'About', text: 'Write something about your brand.' },
+  contact: { title: 'Contact', address: '', phone: '', email: 'support@example.com' },
+  social: { title: '', underLogo: true, links: [{ label: 'facebook', url: '' }, { label: 'instagram', url: '' }] },
+  newsletter: { title: 'Stay connected', email: 'support@example.com', placeholder: 'Email address', buttonLabel: 'Join' },
+};
+
+const makeFooterBlock = (type) => ({
+  id: `${type}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`,
+  type,
+  span: 1,
+  x: 0,
+  y: 0,
+  ...FOOTER_BLOCK_DEFAULTS[type],
+});
+
+const SAMPLE_FOOTER_BLOCKS = [
+  {
+    id: 'sample-social', type: 'social', title: '', span: 1, x: 0, y: 0, underLogo: true,
+    links: [{ label: 'facebook', url: 'https://facebook.com' }, { label: 'instagram', url: 'https://instagram.com' }],
+  },
+  {
+    id: 'sample-shop', type: 'menu', title: 'Shop', span: 1, x: 0, y: 0,
+    links: [
+      { label: 'Shop All', url: '/shop' },
+      { label: 'New Arrivals', url: '/new-arrivals' },
+      { label: 'Essentials', url: '/essentials' },
+      { label: 'Tops', url: '/tops' },
+      { label: 'Bottoms', url: '/bottoms' },
+    ],
+  },
+  {
+    id: 'sample-support', type: 'menu', title: 'Support', span: 1, x: 0, y: 0,
+    links: [
+      { label: 'Shipping', url: '/shipping' },
+      { label: 'Contact', url: '/contact' },
+      { label: 'Return and Refund', url: '/return-and-refund' },
+      { label: 'Your Privacy Settings', url: '/privacy-settings' },
+    ],
+  },
+  {
+    id: 'sample-company', type: 'menu', title: 'Company', span: 1, x: 0, y: 0,
+    links: [
+      { label: 'About', url: '/about' },
+      { label: 'Privacy', url: '/privacy' },
+      { label: 'Terms', url: '/terms' },
+    ],
+  },
+  {
+    id: 'sample-newsletter', type: 'newsletter', title: 'Stay connected', span: 1, x: 0, y: 0,
+    email: 'support@example.com', placeholder: 'Email address', buttonLabel: 'Join',
+  },
+];
 
 function Field({ label, children }) {
   return (
@@ -152,6 +228,244 @@ function BlockCard({ block, onUpdate, onRemove }) {
   );
 }
 
+function LinksEditor({ links = [], onChange, social = false, max = 10 }) {
+  const update = (index, patch) =>
+    onChange(links.map((link, i) => (i === index ? { ...link, ...patch } : link)));
+  const remove = (index) => onChange(links.filter((_, i) => i !== index));
+
+  return (
+    <div className="space-y-2">
+      {links.map((link, index) => (
+        <div key={index} className="grid grid-cols-[1fr_1fr_auto] items-center gap-2">
+          {social ? (
+            <select
+              value={link.label || 'facebook'}
+              onChange={(e) => update(index, { label: e.target.value })}
+              className={selectClass}
+            >
+              {SOCIAL_PLATFORMS.map((platform) => (
+                <option key={platform.value} value={platform.value}>
+                  {platform.label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <Input value={link.label || ''} onChange={(e) => update(index, { label: e.target.value })} placeholder="Label" />
+          )}
+          <Input
+            value={link.url || ''}
+            onChange={(e) => update(index, { url: e.target.value })}
+            placeholder={social ? 'https://' : '/page'}
+          />
+          <Button type="button" size="sm" variant="outline" onClick={() => remove(index)}>
+            ✕
+          </Button>
+        </div>
+      ))}
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={links.length >= max}
+        onClick={() => onChange([...links, { label: social ? 'facebook' : '', url: '' }])}
+      >
+        {social ? 'Add icon' : 'Add link'}
+      </Button>
+    </div>
+  );
+}
+
+function FooterBlockCard({ block, index, total, menuItems, onUpdate, onRemove, onMove }) {
+  const typeLabel = FOOTER_BLOCK_TYPES.find((t) => t.value === block.type)?.label || block.type;
+  const update = (key) => (value) => onUpdate(block.id, key, value);
+
+  return (
+    <div className="space-y-3 rounded-md border p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-medium">{typeLabel}</span>
+        <div className="flex gap-1">
+          <Button type="button" size="sm" variant="outline" disabled={index === 0} onClick={() => onMove(block.id, -1)}>
+            ↑
+          </Button>
+          <Button type="button" size="sm" variant="outline" disabled={index === total - 1} onClick={() => onMove(block.id, 1)}>
+            ↓
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => onRemove(block.id)}>
+            Remove
+          </Button>
+        </div>
+      </div>
+
+      <TextField label="Title" value={block.title} onChange={update('title')} />
+
+      <div className="grid grid-cols-2 gap-2">
+        <SelectField
+          label="Width (columns)"
+          value={block.span || 1}
+          onChange={(value) => update('span')(Number(value))}
+          options={[1, 2, 3, 4, 5, 6].map((n) => ({ label: String(n), value: n }))}
+        />
+        <Field label="Position">
+          <ToggleField label="Under the logo" value={block.underLogo} onChange={update('underLogo')} />
+        </Field>
+      </div>
+
+      {block.type === 'text' && (
+        <Field label="Text">
+          <textarea
+            value={block.text || ''}
+            onChange={(e) => update('text')(e.target.value)}
+            rows={3}
+            className={textareaClass}
+          />
+        </Field>
+      )}
+
+      {block.type === 'contact' && (
+        <>
+          <TextField label="Address" value={block.address} onChange={update('address')} />
+          <TextField label="Phone" value={block.phone} onChange={update('phone')} />
+          <TextField label="Email" value={block.email} onChange={update('email')} />
+        </>
+      )}
+
+      {block.type === 'newsletter' && (
+        <>
+          <TextField label="Line above the field (e.g. email)" value={block.email} onChange={update('email')} />
+          <TextField label="Input placeholder" value={block.placeholder} onChange={update('placeholder')} />
+          <TextField label="Button label" value={block.buttonLabel} onChange={update('buttonLabel')} />
+        </>
+      )}
+
+      {block.type === 'menu' && (
+        <>
+          <LinksEditor links={block.links || []} onChange={update('links')} />
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={menuItems.length === 0}
+            onClick={() =>
+              update('links')(
+                menuItems.slice(0, 10).map((item) => ({
+                  label: String(item.title).slice(0, 40),
+                  url: item.url || '#',
+                }))
+              )
+            }
+          >
+            Import from menu items
+          </Button>
+        </>
+      )}
+
+      {block.type === 'social' && <LinksEditor links={block.links || []} onChange={update('links')} social />}
+    </div>
+  );
+}
+
+function FooterImagesEditor({ footer, onChange, onUpload }) {
+  const [uploadingId, setUploadingId] = useState(null);
+  const [error, setError] = useState('');
+  const section = footer.imagesSection || {};
+  const images = footer.images || [];
+  const MAX_IMAGES = 12;
+
+  const setSection = (key, value) => onChange(`footer.imagesSection.${key}`, value);
+  const setImages = (next) => onChange('footer.images', next);
+  const updateImage = (id, patch) => setImages(images.map((img) => (img.id === id ? { ...img, ...patch } : img)));
+
+  const addImage = () => {
+    if (images.length >= MAX_IMAGES) return;
+    setImages([...images, { id: `img-${Date.now().toString(36)}`, url: '', alt: '', link: '' }]);
+  };
+
+  const handleFile = async (id, e) => {
+    const file = e.target.files?.[0];
+    if (!file || !onUpload) return;
+
+    setUploadingId(id);
+    setError('');
+
+    try {
+      updateImage(id, { url: await onUpload(file) });
+    } catch (err) {
+      setError(err.message || 'Upload failed.');
+    } finally {
+      setUploadingId(null);
+      e.target.value = '';
+    }
+  };
+
+  return (
+    <div className="space-y-3 border-t pt-4">
+      <p className="text-sm font-medium">Images (e.g. payment cards)</p>
+
+      <ToggleField label="Show images section" value={section.enabled} onChange={(v) => setSection('enabled', v)} />
+
+      {section.enabled && (
+        <>
+          <TextField label="Title (optional)" value={section.title} onChange={(v) => setSection('title', v)} />
+          <SelectField
+            label="Position"
+            value={section.position || 'bottom'}
+            onChange={(v) => setSection('position', v)}
+            options={[
+              { label: 'Bottom bar (next to copyright)', value: 'bottom' },
+              { label: 'Above the columns', value: 'top' },
+            ]}
+          />
+          {section.position === 'top' && (
+            <SelectField
+              label="Alignment"
+              value={section.align || 'flex-start'}
+              onChange={(v) => setSection('align', v)}
+              options={[
+                { label: 'Left', value: 'flex-start' },
+                { label: 'Center', value: 'center' },
+                { label: 'Right', value: 'flex-end' },
+              ]}
+            />
+          )}
+          <RangeField label="Image height" value={section.height || 28} onChange={(v) => setSection('height', v)} min={16} max={200} />
+          <RangeField label="Gap" value={section.gap ?? 8} onChange={(v) => setSection('gap', v)} min={0} max={64} />
+
+          {images.map((image) => (
+            <div key={image.id} className="space-y-2 rounded-md border p-3">
+              <div className="flex items-center justify-between gap-2">
+                {image.url ? (
+                  <img src={image.url} alt={image.alt || ''} style={{ height: 28, maxWidth: '70%' }} />
+                ) : (
+                  <span className="text-xs text-muted-foreground">No image yet</span>
+                )}
+                <Button type="button" size="sm" variant="outline" onClick={() => setImages(images.filter((i) => i.id !== image.id))}>
+                  Remove
+                </Button>
+              </div>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                onChange={(e) => handleFile(image.id, e)}
+                disabled={uploadingId === image.id}
+                className="block w-full text-sm file:mr-3 file:rounded-md file:border file:border-input file:bg-transparent file:px-3 file:py-1.5 file:text-sm"
+              />
+              <TextField label="Image URL" value={image.url} onChange={(v) => updateImage(image.id, { url: v })} placeholder="/frontend/visa.png" />
+              <TextField label="Alt text" value={image.alt} onChange={(v) => updateImage(image.id, { alt: v })} />
+              <TextField label="Link (optional)" value={image.link} onChange={(v) => updateImage(image.id, { link: v })} placeholder="https://" />
+            </div>
+          ))}
+
+          {error && <p className="text-xs text-destructive">{error}</p>}
+
+          <Button type="button" size="sm" variant="outline" onClick={addImage} disabled={images.length >= MAX_IMAGES}>
+            Add image
+          </Button>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function DesignControls({ design, items = [], onChange, onUploadLogo }) {
   const { menuId } = useParams();
   const navigate = useNavigate();
@@ -160,6 +474,7 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
   const [uploadError, setUploadError] = useState('');
   const fileRef = useRef(null);
   const [newBlockType, setNewBlockType] = useState('text');
+  const [newFooterType, setNewFooterType] = useState('menu');
   const isHeader = design.variant === 'header';
   const { layout, logo, colors, typography, mobile, footer } = design;
 
@@ -169,7 +484,12 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
   const set = (path) => (value) => onChange(path, value);
 
   const blocks = design.blocks || [];
+  const footerBlocks = footer.blocks || [];
   const MAX_BLOCKS = 12;
+
+  const positions = getPositions(design);
+
+  // ----- header blocks -----
 
   const addBlock = () => {
     if (blocks.length >= MAX_BLOCKS) return;
@@ -182,18 +502,50 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
 
   const removeBlock = (id) => {
     onChange('blocks', blocks.filter((b) => b.id !== id));
-    if (getPositions(design)[id]) {
-      const next = { ...getPositions(design) };
+    if (positions[id]) {
+      const next = { ...positions };
       delete next[id];
       onChange('positions', next);
     }
   };
 
+  // ----- footer blocks -----
+
+  const addFooterBlock = () => {
+    if (footerBlocks.length >= MAX_BLOCKS) return;
+    onChange('footer.blocks', [...footerBlocks, makeFooterBlock(newFooterType)]);
+  };
+
+  const updateFooterBlock = (id, key, value) =>
+    onChange('footer.blocks', footerBlocks.map((b) => (b.id === id ? { ...b, [key]: value } : b)));
+
+  const removeFooterBlock = (id) => {
+    onChange('footer.blocks', footerBlocks.filter((b) => b.id !== id));
+    if (positions[id]) {
+      const next = { ...positions };
+      delete next[id];
+      onChange('positions', next);
+    }
+  };
+
+  const moveFooterBlock = (id, direction) => {
+    const index = footerBlocks.findIndex((b) => b.id === id);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= footerBlocks.length) return;
+    const next = [...footerBlocks];
+    [next[index], next[target]] = [next[target], next[index]];
+    onChange('footer.blocks', next);
+  };
+
+  const applySampleFooter = () => {
+    onChange('footer.blocks', SAMPLE_FOOTER_BLOCKS);
+    onChange('layout.columns', 5);
+    onChange('positions', positions.logo ? { logo: positions.logo } : {});
+  };
+
   const orderedBlocks = resolveOrder(design)
     .map((id) => blocks.find((b) => b.id === id))
     .filter(Boolean);
-
-  const positions = getPositions(design);
 
   const partLabel = (id) => {
     if (id === 'logo') return 'Logo';
@@ -202,13 +554,21 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
     return BLOCK_TYPES.find((t) => t.value === block?.type)?.label || id;
   };
 
-  // Logo, CTA and blocks. Menu items are placed from the Menu Items tab.
-  const partList = resolveOrder(design).map((id) => ({ id, label: partLabel(id) }));
+  const footerBlockLabel = (block) =>
+    `${FOOTER_BLOCK_TYPES.find((t) => t.value === block.type)?.label || block.type}${block.title ? `: ${block.title}` : ''}`;
 
-  // Keep a position inside the header bar
+  // Header: logo, CTA and blocks (menu items are placed from the Menu Items tab).
+  // Footer: logo and footer blocks.
+  const partList = isHeader
+    ? resolveOrder(design).map((id) => ({ id, label: partLabel(id) }))
+    : [{ id: 'logo', label: 'Logo' }, ...footerBlocks.map((block) => ({ id: block.id, label: footerBlockLabel(block) }))];
+
+  // Keep a position inside the header bar (the footer only limits the upper range)
   const clampToHeader = (pos) => ({
-    x: Math.max(0, Number(pos.x) || 0),
-    y: Math.min(Math.max(0, Number(pos.y) || 0), Math.max(0, layout.height - 20)),
+    x: Math.min(Math.max(0, Number(pos.x) || 0), 5000),
+    y: isHeader
+      ? Math.min(Math.max(0, Number(pos.y) || 0), Math.max(0, layout.height - 20))
+      : Math.min(Math.max(0, Number(pos.y) || 0), 5000),
   });
 
   const setPosition = (id, patch) =>
@@ -258,6 +618,38 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
     { id: 'blocks', label: 'Blocks' },
     { id: 'mobile', label: 'Mobile' },
   ];
+
+  const placementPanel = (emptyHint) => (
+    <div className="space-y-3 border-t pt-4">
+      <p className="text-sm font-medium">Placement</p>
+      {partList.map(({ id, label }) => {
+        const pos = positions[id];
+
+        return pos ? (
+          <div key={id} className="space-y-2 rounded-md border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm">{label}</span>
+              <Button type="button" size="sm" variant="outline" onClick={() => resetPosition(id)}>
+                Back to flow
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="X (px)">
+                <Input type="number" value={pos.x} onChange={(e) => setPosition(id, { x: e.target.value })} />
+              </Field>
+              <Field label="Y (px)">
+                <Input type="number" value={pos.y} onChange={(e) => setPosition(id, { y: e.target.value })} />
+              </Field>
+            </div>
+          </div>
+        ) : (
+          <p key={id} className="text-xs text-muted-foreground">
+            {label}: {emptyHint}
+          </p>
+        );
+      })}
+    </div>
+  );
 
   return (
     <Card className="h-fit">
@@ -316,7 +708,25 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
                 <ToggleField label="Drop shadow" value={layout.shadow} onChange={set('layout.shadow')} />
               </>
             ) : (
-              <RangeField label="Columns" value={layout.columns} onChange={set('layout.columns')} min={1} max={6} unit="" />
+              <>
+                <RangeField label="Columns" value={layout.columns} onChange={set('layout.columns')} min={1} max={6} unit="" />
+                <RangeField
+                  label="Min height, desktop (0 = auto)"
+                  value={layout.footerHeight || 0}
+                  onChange={set('layout.footerHeight')}
+                  min={0}
+                  max={1000}
+                  step={10}
+                />
+                <RangeField
+                  label="Min height, mobile (0 = auto)"
+                  value={layout.footerHeightMobile || 0}
+                  onChange={set('layout.footerHeightMobile')}
+                  min={0}
+                  max={1600}
+                  step={10}
+                />
+              </>
             )}
             <ToggleField
               label={isHeader ? 'Bottom border' : 'Top border'}
@@ -395,7 +805,7 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
             <ColorField label="Background" value={colors.background} onChange={set('colors.background')} />
             <ColorField label="Text" value={colors.text} onChange={set('colors.text')} />
             <ColorField label="Hover" value={colors.hover} onChange={set('colors.hover')} />
-            <ColorField label="Active item" value={colors.active} onChange={set('colors.active')} />
+            <ColorField label="Active item / headings" value={colors.active} onChange={set('colors.active')} />
             <ColorField label="Border" value={colors.border} onChange={set('colors.border')} />
             {isHeader && (
               <>
@@ -507,13 +917,16 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
         )}
 
         {tab === 'menuItems' && !isHeader && (
-          <TextField label="Copyright text" value={footer.copyright} onChange={set('footer.copyright')} />
+          <div className="space-y-4">
+            <TextField label="Copyright text" value={footer.copyright} onChange={set('footer.copyright')} />
+            <FooterImagesEditor footer={footer} onChange={onChange} onUpload={onUploadLogo} />
+          </div>
         )}
 
-        {tab === 'blocks' && (
+        {tab === 'blocks' && isHeader && (
           <>
             <p className="text-xs text-muted-foreground">
-              Add extra parts to the {isHeader ? 'header' : 'footer'}. Drag the logo and blocks anywhere in the live preview. Click a part and use the arrow keys to nudge it 1px (Shift: 10px). Double-click a part to put it back in the normal flow.
+              Add extra parts to the header. Drag the logo and blocks anywhere in the live preview. Click a part and use the arrow keys to nudge it 1px (Shift: 10px). Double-click a part to put it back in the normal flow.
             </p>
 
             <div className="flex items-end gap-2">
@@ -531,35 +944,49 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
               <BlockCard key={block.id} block={block} onUpdate={updateBlock} onRemove={removeBlock} />
             ))}
 
-            <div className="space-y-3 border-t pt-4">
-              <p className="text-sm font-medium">Placement</p>
-              {partList.map(({ id, label }) => {
-                const pos = positions[id];
+            {placementPanel('in normal flow. Drag it in the preview to place it freely.')}
+          </>
+        )}
 
-                return pos ? (
-                  <div key={id} className="space-y-2 rounded-md border p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm">{label}</span>
-                      <Button type="button" size="sm" variant="outline" onClick={() => resetPosition(id)}>
-                        Back to flow
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Field label="X (px)">
-                        <Input type="number" value={pos.x} onChange={(e) => setPosition(id, { x: e.target.value })} />
-                      </Field>
-                      <Field label="Y (px)">
-                        <Input type="number" value={pos.y} onChange={(e) => setPosition(id, { y: e.target.value })} />
-                      </Field>
-                    </div>
-                  </div>
-                ) : (
-                  <p key={id} className="text-xs text-muted-foreground">
-                    {label}: in normal flow. Drag it in the preview to place it freely.
-                  </p>
-                );
-              })}
+        {tab === 'blocks' && !isHeader && (
+          <>
+            <p className="text-xs text-muted-foreground">
+              Build the footer from blocks: link columns, text, contact, social icons and a newsletter box. Drag a block in the preview to place it freely, or double-click to put it back in the grid.
+            </p>
+
+            <Button type="button" size="sm" variant="outline" onClick={applySampleFooter}>
+              Apply sample layout (logo + 3 link columns + newsletter)
+            </Button>
+
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <SelectField label="Block type" value={newFooterType} onChange={setNewFooterType} options={FOOTER_BLOCK_TYPES} />
+              </div>
+              <Button type="button" size="sm" onClick={addFooterBlock} disabled={footerBlocks.length >= MAX_BLOCKS}>
+                Add block
+              </Button>
             </div>
+
+            {footerBlocks.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No blocks yet. The footer shows your menu items as columns until you add one.
+              </p>
+            )}
+
+            {footerBlocks.map((block, index) => (
+              <FooterBlockCard
+                key={block.id}
+                block={block}
+                index={index}
+                total={footerBlocks.length}
+                menuItems={flatMenuItems}
+                onUpdate={updateFooterBlock}
+                onRemove={removeFooterBlock}
+                onMove={moveFooterBlock}
+              />
+            ))}
+
+            {placementPanel('in the grid. Drag it in the preview to place it freely.')}
           </>
         )}
 

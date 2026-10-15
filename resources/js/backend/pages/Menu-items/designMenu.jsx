@@ -93,6 +93,9 @@ export default function DesignMenu() {
 
   const isDirty = JSON.stringify(design) !== savedSnapshot;
 
+  // Desktop and mobile placements are saved separately so editing one never moves the other
+  const positionsKey = device === 'mobile' ? 'positionsMobile' : 'positions';
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -144,25 +147,28 @@ export default function DesignMenu() {
               design={design}
               items={items}
               device={device}
+              onResizeFooter={(height) =>
+                handleChange(device === 'mobile' ? 'layout.footerHeightMobile' : 'layout.footerHeight', height)
+              }
               onMovePart={(id, pos) =>
-                setDesign((previous) => ({
-                  ...previous,
-                  positions: {
-                    ...(previous.positions && !Array.isArray(previous.positions) ? previous.positions : {}),
-                    [id]: pos,
-                  },
-                }))
+                setDesign((previous) => {
+                  const key = positionsKey;
+                  const current = previous[key] && !Array.isArray(previous[key]) ? previous[key] : {};
+
+                  return { ...previous, [key]: { ...current, [id]: pos } };
+                })
               }
               onResetPart={(id) =>
                 setDesign((previous) => {
-                  const next = { ...(previous.positions && !Array.isArray(previous.positions) ? previous.positions : {}) };
+                  const key = positionsKey;
+                  const next = { ...(previous[key] && !Array.isArray(previous[key]) ? previous[key] : {}) };
                   delete next[id];
-                  return { ...previous, positions: next };
+                  return { ...previous, [key]: next };
                 })
               }
             />
             <p className="mt-3 text-xs text-muted-foreground">
-              Drag the logo, menu and blocks (dashed outlines) anywhere in the header on desktop. Click one and use the arrow keys to nudge it 1px (Shift: 10px). Double-click to put it back in the flow. Hover a menu item with children to preview its dropdown. Draft items show faded.
+              Drag the logo, menu and blocks (dashed outlines) anywhere in the header or footer on desktop. In the footer, drag the grip on its bottom edge to change the height (double-click it to reset). Desktop and mobile heights are saved separately. Click one and use the arrow keys to nudge it 1px (Shift: 10px). Double-click to put it back in the flow. Hover a menu item with children to preview its dropdown. Draft items show faded.
             </p>
           </CardContent>
         </Card>

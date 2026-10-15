@@ -105,10 +105,10 @@ export function resolveZones(design) {
     const cta = design.button?.enabled ? ['cta'] : [];
     const position = design.layout?.logoPosition;
 
-    if (position === 'right') return { left: [...before, 'menu'], center: [], right: [...after, ...cta, ...logo] };
-    if (position === 'center') return { left: [...before, 'menu'], center: logo, right: [...after, ...cta] };
+    if (position === 'right') return { left: [...before], center: [], right: [...after, ...cta, ...logo] };
+    if (position === 'center') return { left: [...before], center: logo, right: [...after, ...cta] };
 
-    return { left: [...logo, ...before, 'menu'], center: [], right: [...after, ...cta] };
+    return { left: [...logo, ...before], center: [], right: [...after, ...cta] };
 }
 
 // Flat list of part ids in default flow order

@@ -1,3 +1,4 @@
+import { GripVertical } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -197,35 +198,37 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
   const partLabel = (id) => {
     if (id === 'logo') return 'Logo';
     if (id === 'cta') return 'Button (CTA)';
-    if (id.startsWith('menu-item-')) {
-      const itemId = id.replace('menu-item-', '');
-      const found = flatMenuItems.find((i) => String(i.id) === String(itemId));
-      return found ? `Menu Item: ${found.title}` : `Menu Item #${itemId}`;
-    }
     const block = blocks.find((b) => b.id === id);
     return BLOCK_TYPES.find((t) => t.value === block?.type)?.label || id;
   };
 
-  const baseOrder = resolveOrder(design);
-  const partList = [];
+  // Logo, CTA and blocks. Menu items are placed from the Menu Items tab.
+  const partList = resolveOrder(design).map((id) => ({ id, label: partLabel(id) }));
 
-  baseOrder.forEach((id) => {
-    if (id === 'menu') {
-      flatMenuItems.forEach((item) => {
-        partList.push({ id: `menu-item-${item.id}`, label: partLabel(`menu-item-${item.id}`) });
-      });
-    } else {
-      partList.push({ id, label: partLabel(id) });
-    }
+  // Keep a position inside the header bar
+  const clampToHeader = (pos) => ({
+    x: Math.max(0, Number(pos.x) || 0),
+    y: Math.min(Math.max(0, Number(pos.y) || 0), Math.max(0, layout.height - 20)),
   });
 
   const setPosition = (id, patch) =>
-    onChange('positions', { ...positions, [id]: { ...positions[id], ...patch } });
+    onChange('positions', {
+      ...positions,
+      [id]: clampToHeader({ ...positions[id], ...patch }),
+    });
 
   const resetPosition = (id) => {
     const next = { ...positions };
     delete next[id];
     onChange('positions', next);
+  };
+
+  const placeItem = (posId) => {
+    const count = Object.keys(positions).filter((key) => key.startsWith('menu-item-')).length;
+    onChange('positions', {
+      ...positions,
+      [posId]: clampToHeader({ x: 220 + count * 110, y: (layout.height - 20) / 2 }),
+    });
   };
 
   const handleFile = async (e) => {
@@ -439,9 +442,10 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
 
         {tab === 'menuItems' && isHeader && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <p className="text-xs text-muted-foreground">
-                All items from the menu items module. Drag each item individually in the preview or configure their positions below.
+                Drag an item from this list into the header preview to place it. Drag it inside the header to move it.
+                Double-click it in the preview (or use Remove) to take it out.
               </p>
               <Button type="button" size="sm" variant="outline" onClick={() => navigate(`/menus/${menuId}`)}>
                 Manage Items
@@ -457,25 +461,43 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
 
                 return (
                   <div key={item.id} className="space-y-2 rounded-md border p-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{item.title}</span>
-                      {pos && (
+                    <div
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('application/x-menu-item', posId);
+                        e.dataTransfer.setData('text/plain', item.title);
+                        e.dataTransfer.effectAllowed = 'copy';
+                      }}
+                      className="flex cursor-grab items-center justify-between gap-2 active:cursor-grabbing"
+                    >
+                      <span className="flex items-center gap-2 text-sm font-medium">
+                        <GripVertical className="h-4 w-4 text-muted-foreground" />
+                        {'— '.repeat(item.depth)}
+                        {item.title}
+                      </span>
+
+                      {pos ? (
                         <Button type="button" size="sm" variant="outline" onClick={() => resetPosition(posId)}>
-                          Back to flow
+                          Remove
+                        </Button>
+                      ) : (
+                        <Button type="button" size="sm" variant="outline" onClick={() => placeItem(posId)}>
+                          Add to header
                         </Button>
                       )}
                     </div>
+
                     {pos ? (
                       <div className="grid grid-cols-2 gap-2">
                         <Field label="X (px)">
-                          <Input type="number" value={pos.x} onChange={(e) => setPosition(posId, { x: Number(e.target.value) || 0 })} />
+                          <Input type="number" value={pos.x} onChange={(e) => setPosition(posId, { x: e.target.value })} />
                         </Field>
                         <Field label="Y (px)">
-                          <Input type="number" value={pos.y} onChange={(e) => setPosition(posId, { y: Number(e.target.value) || 0 })} />
+                          <Input type="number" value={pos.y} onChange={(e) => setPosition(posId, { y: e.target.value })} />
                         </Field>
                       </div>
                     ) : (
-                      <p className="text-xs text-muted-foreground">In normal flow. Drag it in the live preview.</p>
+                      <p className="text-xs text-muted-foreground">Not in the header. Drag it into the preview.</p>
                     )}
                   </div>
                 );
@@ -491,7 +513,7 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
         {tab === 'blocks' && (
           <>
             <p className="text-xs text-muted-foreground">
-              Add extra parts to the {isHeader ? 'header' : 'footer'}. Drag the logo, menu items and blocks anywhere in the live preview. Click a part and use the arrow keys to nudge it 1px (Shift: 10px). Double-click a part to put it back in the normal flow.
+              Add extra parts to the {isHeader ? 'header' : 'footer'}. Drag the logo and blocks anywhere in the live preview. Click a part and use the arrow keys to nudge it 1px (Shift: 10px). Double-click a part to put it back in the normal flow.
             </p>
 
             <div className="flex items-end gap-2">
@@ -524,10 +546,10 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <Field label="X (px)">
-                        <Input type="number" value={pos.x} onChange={(e) => setPosition(id, { x: Number(e.target.value) || 0 })} />
+                        <Input type="number" value={pos.x} onChange={(e) => setPosition(id, { x: e.target.value })} />
                       </Field>
                       <Field label="Y (px)">
-                        <Input type="number" value={pos.y} onChange={(e) => setPosition(id, { y: Number(e.target.value) || 0 })} />
+                        <Input type="number" value={pos.y} onChange={(e) => setPosition(id, { y: e.target.value })} />
                       </Field>
                     </div>
                   </div>

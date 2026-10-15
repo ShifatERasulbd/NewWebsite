@@ -386,24 +386,6 @@ function HeaderPreview({ design, items, mobile, onMovePart, onResetPart }) {
     );
   }
 
-  const nav = (
-    <ul
-      style={{
-        display: 'flex',
-        alignItems: 'stretch',
-        alignSelf: 'stretch',
-        gap: layout.itemGap,
-        flex: '0 1 auto',
-        margin: 0,
-        padding: 0,
-      }}
-    >
-      {items.map((item, index) => (
-        <NavItem key={item.id} item={item} design={design} active={index === 0} />
-      ))}
-    </ul>
-  );
-
   const cta = button.enabled ? (
     <a
       href="#"
@@ -423,12 +405,30 @@ function HeaderPreview({ design, items, mobile, onMovePart, onResetPart }) {
   const zones = resolveZones(design);
   const positions = getPositions(design);
   const editing = Boolean(onMovePart);
+  const flatItems = flattenItems(items);
+  const placedItems = flatItems.filter((item) => positions[`menu-item-${item.id}`]);
 
   const measure = (el) => {
     const container = innerRef.current.getBoundingClientRect();
     const rect = el.getBoundingClientRect();
 
     return { x: Math.round(rect.left - container.left), y: Math.round(rect.top - container.top) };
+  };
+
+  // Keep a part fully inside the header bar
+  const clampPos = (pos, el) => {
+    const container = innerRef.current;
+    if (!container) return pos;
+
+    const width = el ? el.offsetWidth : 0;
+    const height = el ? el.offsetHeight : 0;
+    const maxX = Math.max(0, container.clientWidth - width);
+    const maxY = Math.max(0, container.clientHeight - height);
+
+    return {
+      x: Math.min(Math.max(0, pos.x), maxX),
+      y: Math.min(Math.max(0, pos.y), maxY),
+    };
   };
 
   const edit = editing
@@ -440,6 +440,7 @@ function HeaderPreview({ design, items, mobile, onMovePart, onResetPart }) {
           if (e.button !== 0 || !innerRef.current) return;
           dragRef.current = {
             id,
+            el: e.currentTarget,
             startX: e.clientX,
             startY: e.clientY,
             origin: positions[id] || measure(e.currentTarget),
@@ -453,7 +454,10 @@ function HeaderPreview({ design, items, mobile, onMovePart, onResetPart }) {
           const dx = e.clientX - drag.startX;
           const dy = e.clientY - drag.startY;
           if (dx === 0 && dy === 0) return;
-          onMovePart(drag.id, { x: Math.round(drag.origin.x + dx), y: Math.round(drag.origin.y + dy) });
+          onMovePart(
+            drag.id,
+            clampPos({ x: Math.round(drag.origin.x + dx), y: Math.round(drag.origin.y + dy) }, drag.el)
+          );
         },
         end: (e) => {
           dragRef.current = null;
@@ -472,7 +476,7 @@ function HeaderPreview({ design, items, mobile, onMovePart, onResetPart }) {
           if (!delta || !innerRef.current) return;
           e.preventDefault();
           const origin = positions[id] || measure(e.currentTarget);
-          onMovePart(id, { x: origin.x + delta[0], y: origin.y + delta[1] });
+          onMovePart(id, clampPos({ x: origin.x + delta[0], y: origin.y + delta[1] }, e.currentTarget));
         },
       }
     : null;
@@ -484,20 +488,6 @@ function HeaderPreview({ design, items, mobile, onMovePart, onResetPart }) {
       return (
         <FreePart key={id} id={id} pos={positions[id]} edit={edit} style={centered}>
           <Logo design={design} />
-        </FreePart>
-      );
-    }
-
-    if (id === 'menu') {
-      return (
-        <FreePart
-          key={id}
-          id={id}
-          pos={positions[id]}
-          edit={edit}
-          style={{ display: 'flex', alignSelf: 'stretch', minWidth: 0 }}
-        >
-          {nav}
         </FreePart>
       );
     }
@@ -538,11 +528,44 @@ function HeaderPreview({ design, items, mobile, onMovePart, onResetPart }) {
           {zones[name].map(renderPart)}
         </div>
       ))}
+
+      {placedItems.map((item) => {
+        const id = `menu-item-${item.id}`;
+
+        return (
+          <FreePart key={id} id={id} pos={positions[id]} edit={edit} style={centered}>
+            <ul style={{ display: 'flex', margin: 0, padding: 0 }}>
+              <NavItem item={item} design={design} active={flatItems[0]?.id === item.id} />
+            </ul>
+          </FreePart>
+        );
+      })}
     </div>
   );
 
   return (
-    <div style={bar}>
+    <div
+      style={bar}
+      onDragOver={(e) => {
+        if (editing && Array.from(e.dataTransfer.types).includes('application/x-menu-item')) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+        }
+      }}
+      onDrop={(e) => {
+        const id = e.dataTransfer.getData('application/x-menu-item');
+        if (!editing || !id || !innerRef.current) return;
+        e.preventDefault();
+        const rect = innerRef.current.getBoundingClientRect();
+        onMovePart(
+          id,
+          clampPos(
+            { x: Math.round(e.clientX - rect.left), y: Math.round(e.clientY - rect.top - 10) },
+            { offsetWidth: 80, offsetHeight: 24 }
+          )
+        );
+      }}
+    >
       {content}
     </div>
   );

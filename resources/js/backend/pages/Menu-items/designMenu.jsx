@@ -169,6 +169,7 @@ export default function DesignMenu() {
 
         <DesignControls
           design={design}
+           items={items}
           onChange={handleChange}
           onUploadLogo={(file) => uploadMenuLogo(menuId, file)}
         />

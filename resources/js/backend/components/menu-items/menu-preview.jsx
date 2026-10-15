@@ -125,8 +125,9 @@ const SOCIAL_BADGES = [
   ['youtube', '▶'],
 ];
 
-function Block({ block, design }) {
-  const { colors, button, typography } = design;
+function Block({ block, design, items = [] }) {
+  const { colors, button, typography, dropdown } = design;
+  const [open, setOpen] = useState(false);
   const stop = (e) => e.preventDefault();
 
   if (block.type === 'text') {
@@ -138,6 +139,41 @@ function Block({ block, design }) {
       <a href="#" onClick={stop} style={textStyle(design, colors.text)}>
         {block.text || 'Phone number'}
       </a>
+    );
+  }
+
+  if (block.type === 'menu-items') {
+    return (
+      <div
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        style={{ position: 'relative', display: 'inline-block' }}
+      >
+        <a href="#" onClick={stop} style={textStyle(design, colors.text)}>
+          {block.text || 'Menu Items ▾'}
+        </a>
+        {open && items.length > 0 && (
+          <ul
+            style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              minWidth: dropdown.width || 220,
+              margin: 0,
+              padding: '6px 0',
+              background: colors.dropdownBg,
+              border: `1px solid ${colors.border}`,
+              borderRadius: dropdown.radius,
+              boxShadow: dropdown.shadow ? '0 10px 30px rgba(0, 0, 0, 0.15)' : 'none',
+              zIndex: 30,
+            }}
+          >
+            {items.map((item) => (
+              <NavItem key={item.id} item={item} design={design} depth={1} />
+            ))}
+          </ul>
+        )}
+      </div>
     );
   }
 
@@ -218,18 +254,6 @@ function Block({ block, design }) {
   return null;
 }
 
-function BlockGroup({ blocks, design, direction = 'row' }) {
-  if (!blocks.length) return null;
-
-  return (
-    <div style={{ display: 'flex', flexDirection: direction, alignItems: direction === 'row' ? 'center' : 'flex-start', gap: 16 }}>
-      {blocks.map((block) => (
-        <Block key={block.id} block={block} design={design} />
-      ))}
-    </div>
-  );
-}
-
 function MobileList({ design, items }) {
   const { colors, layout } = design;
   const blocks = resolveOrder(design)
@@ -238,28 +262,32 @@ function MobileList({ design, items }) {
 
   return (
     <div style={{ background: colors.background, borderTop: `1px solid ${colors.border}` }}>
-    <ul style={{ margin: 0, padding: '8px 0' }}>
-      {flattenItems(items).map((item, index) => (
-        <li
-          key={item.id}
-          style={{
-            listStyle: 'none',
-            padding: `8px ${layout.paddingX}px 8px ${layout.paddingX + item.depth * 16}px`,
-            opacity: item.status === 'published' ? 1 : 0.5,
-          }}
-        >
-          <span style={textStyle(design, index === 0 ? colors.active : colors.text)}>
-            {item.depth > 0 ? '↳ ' : ''}
-            {item.title}
-          </span>
-        </li>
-      ))}
-    </ul>
-    {blocks.length > 0 && (
-      <div style={{ padding: `8px ${layout.paddingX}px 16px` }}>
-        <BlockGroup blocks={blocks} design={design} direction="column" />
-      </div>
-    )}
+      <ul style={{ margin: 0, padding: '8px 0' }}>
+        {flattenItems(items).map((item, index) => (
+          <li
+            key={item.id}
+            style={{
+              listStyle: 'none',
+              padding: `8px ${layout.paddingX}px 8px ${layout.paddingX + item.depth * 16}px`,
+              opacity: item.status === 'published' ? 1 : 0.5,
+            }}
+          >
+            <span style={textStyle(design, index === 0 ? colors.active : colors.text)}>
+              {item.depth > 0 ? '↳ ' : ''}
+              {item.title}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {blocks.length > 0 && (
+        <div style={{ padding: `8px ${layout.paddingX}px 16px` }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {blocks.map((block) => (
+              <Block key={block.id} block={block} design={design} items={items} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -396,7 +424,6 @@ function HeaderPreview({ design, items, mobile, onMovePart, onResetPart }) {
   const positions = getPositions(design);
   const editing = Boolean(onMovePart);
 
-  // Current offset of a part from the header's top-left corner
   const measure = (el) => {
     const container = innerRef.current.getBoundingClientRect();
     const rect = el.getBoundingClientRect();
@@ -487,7 +514,7 @@ function HeaderPreview({ design, items, mobile, onMovePart, onResetPart }) {
 
     return block ? (
       <FreePart key={id} id={id} pos={positions[id]} edit={edit} style={centered}>
-        <Block block={block} design={design} />
+        <Block block={block} design={design} items={items} />
       </FreePart>
     ) : null;
   };
@@ -501,8 +528,6 @@ function HeaderPreview({ design, items, mobile, onMovePart, onResetPart }) {
     justifyContent: name === 'left' ? 'flex-start' : name === 'center' ? 'center' : 'flex-end',
   });
 
-  // Parts stay inside their flow area in the markup; placed ones are positioned absolutely
-  // against the header row, so picking one up never remounts it mid-drag.
   const content = (
     <div
       ref={innerRef}
@@ -523,9 +548,68 @@ function HeaderPreview({ design, items, mobile, onMovePart, onResetPart }) {
   );
 }
 
-function FooterPreview({ design, items, mobile }) {
+function FooterPreview({ design, items, mobile, onMovePart, onResetPart }) {
   const { layout, colors, typography, footer } = design;
+  const [selectedId, setSelectedId] = useState(null);
+  const footerRef = useRef(null);
+  const dragRef = useRef(null);
+
   const columns = mobile ? 1 : layout.columns;
+  const blocks = design.blocks || [];
+  const positions = getPositions(design);
+  const editing = Boolean(onMovePart);
+
+  const measure = (el) => {
+    const container = footerRef.current.getBoundingClientRect();
+    const rect = el.getBoundingClientRect();
+    return { x: Math.round(rect.left - container.left), y: Math.round(rect.top - container.top) };
+  };
+
+  const edit = editing
+    ? {
+        selectedId,
+        select: setSelectedId,
+        reset: (id) => onResetPart && onResetPart(id),
+        begin: (e, id) => {
+          if (e.button !== 0 || !footerRef.current) return;
+          dragRef.current = {
+            id,
+            startX: e.clientX,
+            startY: e.clientY,
+            origin: positions[id] || measure(e.currentTarget),
+          };
+          setSelectedId(id);
+          if (e.currentTarget.setPointerCapture) e.currentTarget.setPointerCapture(e.pointerId);
+        },
+        move: (e) => {
+          const drag = dragRef.current;
+          if (!drag) return;
+          const dx = e.clientX - drag.startX;
+          const dy = e.clientY - drag.startY;
+          if (dx === 0 && dy === 0) return;
+          onMovePart(drag.id, { x: Math.round(drag.origin.x + dx), y: Math.round(drag.origin.y + dy) });
+        },
+        end: (e) => {
+          dragRef.current = null;
+          if (e.currentTarget.releasePointerCapture && e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+          }
+        },
+        key: (e, id) => {
+          const step = e.shiftKey ? 10 : 1;
+          const delta = {
+            ArrowLeft: [-step, 0],
+            ArrowRight: [step, 0],
+            ArrowUp: [0, -step],
+            ArrowDown: [0, step],
+          }[e.key];
+          if (!delta || !footerRef.current) return;
+          e.preventDefault();
+          const origin = positions[id] || measure(e.currentTarget);
+          onMovePart(id, { x: origin.x + delta[0], y: origin.y + delta[1] });
+        },
+      }
+    : null;
 
   return (
     <footer
@@ -535,15 +619,17 @@ function FooterPreview({ design, items, mobile }) {
       }}
     >
       <div
+        ref={footerRef}
         style={{
+          position: 'relative',
           maxWidth: layout.width === 'container' ? layout.maxWidth : '100%',
           margin: '0 auto',
           padding: `32px ${layout.paddingX}px`,
         }}
       >
-        <div style={{ marginBottom: 24 }}>
+        <FreePart id="logo" pos={positions['logo']} edit={edit} style={{ marginBottom: 24 }}>
           <Logo design={design} />
-        </div>
+        </FreePart>
 
         {items.length === 0 ? (
           <p style={{ color: colors.text, opacity: 0.6, fontSize: 13 }}>
@@ -573,6 +659,12 @@ function FooterPreview({ design, items, mobile }) {
             ))}
           </div>
         )}
+
+        {blocks.map((block) => (
+          <FreePart key={block.id} id={block.id} pos={positions[block.id]} edit={edit} style={{ marginTop: 16 }}>
+            <Block block={block} design={design} items={items} />
+          </FreePart>
+        ))}
       </div>
 
       <div
@@ -625,7 +717,13 @@ export function MenuPreview({ design, items = [], device = 'desktop', onMovePart
       {isFooter ? (
         <>
           <Skeleton />
-          <FooterPreview design={design} items={items} mobile={mobile} />
+          <FooterPreview
+            design={design}
+            items={items}
+            mobile={mobile}
+            onMovePart={onMovePart}
+            onResetPart={onResetPart}
+          />
         </>
       ) : (
         <>

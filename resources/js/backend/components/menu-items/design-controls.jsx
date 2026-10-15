@@ -1,10 +1,12 @@
 import { useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { Button } from '@/backend/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/backend/components/ui/card';
 import { Input } from '@/backend/components/ui/input';
 import { Label } from '@/backend/components/ui/label';
 import { FONT_OPTIONS, getPositions, resolveOrder } from '@/backend/pages/Menu-items/designDefaults';
+import { flattenItems } from '@/backend/pages/Menu-items/utils';
 
 const selectClass =
   'h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring';
@@ -15,6 +17,7 @@ const BLOCK_TYPES = [
   { label: 'Search box', value: 'search' },
   { label: 'Social icons', value: 'social' },
   { label: 'Button', value: 'button' },
+  { label: 'Menu Items', value: 'menu-items' },
 ];
 
 const SOCIAL_FIELDS = [
@@ -31,6 +34,7 @@ const BLOCK_DEFAULTS = {
   search: { text: 'Search...' },
   social: {},
   button: { text: 'Sign in', url: '/login', variant: 'outline' },
+  'menu-items': { text: 'Menu Items ▾' },
 };
 
 function Field({ label, children }) {
@@ -123,6 +127,7 @@ function BlockCard({ block, onUpdate, onRemove }) {
       {block.type === 'text' && <TextField label="Text" value={block.text} onChange={update('text')} />}
       {block.type === 'phone' && <TextField label="Phone number" value={block.text} onChange={update('text')} />}
       {block.type === 'search' && <TextField label="Placeholder" value={block.text} onChange={update('text')} />}
+      {block.type === 'menu-items' && <TextField label="Dropdown Label" value={block.text} onChange={update('text')} />}
       {block.type === 'social' &&
         SOCIAL_FIELDS.map(([key, label]) => (
           <TextField key={key} label={label} value={block[key]} onChange={update(key)} placeholder="https://" />
@@ -146,14 +151,19 @@ function BlockCard({ block, onUpdate, onRemove }) {
   );
 }
 
-export default function DesignControls({ design, onChange, onUploadLogo }) {
+export default function DesignControls({ design, items = [], onChange, onUploadLogo }) {
+  const { menuId } = useParams();
+  const navigate = useNavigate();
   const [tab, setTab] = useState('layout');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const fileRef = useRef(null);
   const [newBlockType, setNewBlockType] = useState('text');
   const isHeader = design.variant === 'header';
-  const { layout, logo, colors, typography, dropdown, button, mobile, footer } = design;
+  const { layout, logo, colors, typography, mobile, footer } = design;
+
+  // Flatten nested items so all menu items appear in the tab
+  const flatMenuItems = flattenItems(items);
 
   const set = (path) => (value) => onChange(path, value);
 
@@ -186,13 +196,28 @@ export default function DesignControls({ design, onChange, onUploadLogo }) {
 
   const partLabel = (id) => {
     if (id === 'logo') return 'Logo';
-    if (id === 'menu') return 'Menu';
     if (id === 'cta') return 'Button (CTA)';
+    if (id.startsWith('menu-item-')) {
+      const itemId = id.replace('menu-item-', '');
+      const found = flatMenuItems.find((i) => String(i.id) === String(itemId));
+      return found ? `Menu Item: ${found.title}` : `Menu Item #${itemId}`;
+    }
     const block = blocks.find((b) => b.id === id);
     return BLOCK_TYPES.find((t) => t.value === block?.type)?.label || id;
   };
 
-  const partList = resolveOrder(design).map((id) => ({ id, label: partLabel(id) }));
+  const baseOrder = resolveOrder(design);
+  const partList = [];
+
+  baseOrder.forEach((id) => {
+    if (id === 'menu') {
+      flatMenuItems.forEach((item) => {
+        partList.push({ id: `menu-item-${item.id}`, label: partLabel(`menu-item-${item.id}`) });
+      });
+    } else {
+      partList.push({ id, label: partLabel(id) });
+    }
+  });
 
   const setPosition = (id, patch) =>
     onChange('positions', { ...positions, [id]: { ...positions[id], ...patch } });
@@ -226,8 +251,8 @@ export default function DesignControls({ design, onChange, onUploadLogo }) {
     { id: 'logo', label: 'Logo' },
     { id: 'colors', label: 'Colors' },
     { id: 'text', label: 'Text' },
-    { id: 'extras', label: isHeader ? 'Dropdown & CTA' : 'Footer' },
-    ...(isHeader ? [{ id: 'blocks', label: 'Blocks' }] : []),
+    { id: 'menuItems', label: isHeader ? 'Menu Items' : 'Footer' },
+    { id: 'blocks', label: 'Blocks' },
     { id: 'mobile', label: 'Mobile' },
   ];
 
@@ -373,8 +398,6 @@ export default function DesignControls({ design, onChange, onUploadLogo }) {
               <>
                 <ColorField label="Dropdown background" value={colors.dropdownBg} onChange={set('colors.dropdownBg')} />
                 <ColorField label="Dropdown text" value={colors.dropdownText} onChange={set('colors.dropdownText')} />
-                <ColorField label="Button background" value={colors.buttonBg} onChange={set('colors.buttonBg')} />
-                <ColorField label="Button text" value={colors.buttonText} onChange={set('colors.buttonText')} />
               </>
             )}
           </>
@@ -414,33 +437,61 @@ export default function DesignControls({ design, onChange, onUploadLogo }) {
           </>
         )}
 
-        {tab === 'extras' && isHeader && (
-          <>
-            <RangeField label="Dropdown radius" value={dropdown.radius} onChange={set('dropdown.radius')} min={0} max={24} />
-            <RangeField label="Dropdown width" value={dropdown.width} onChange={set('dropdown.width')} min={140} max={400} step={10} />
-            <ToggleField label="Dropdown shadow" value={dropdown.shadow} onChange={set('dropdown.shadow')} />
-
-            <div className="border-t pt-4">
-              <ToggleField label="Show call-to-action button" value={button.enabled} onChange={set('button.enabled')} />
+        {tab === 'menuItems' && isHeader && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                All items from the menu items module. Drag each item individually in the preview or configure their positions below.
+              </p>
+              <Button type="button" size="sm" variant="outline" onClick={() => navigate(`/menus/${menuId}`)}>
+                Manage Items
+              </Button>
             </div>
-            {button.enabled && (
-              <>
-                <TextField label="Button label" value={button.label} onChange={set('button.label')} />
-                <TextField label="Button URL" value={button.url} onChange={set('button.url')} placeholder="/contact" />
-                <RangeField label="Button radius" value={button.radius} onChange={set('button.radius')} min={0} max={40} />
-              </>
+
+            {flatMenuItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No menu items found.</p>
+            ) : (
+              flatMenuItems.map((item) => {
+                const posId = `menu-item-${item.id}`;
+                const pos = positions[posId];
+
+                return (
+                  <div key={item.id} className="space-y-2 rounded-md border p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{item.title}</span>
+                      {pos && (
+                        <Button type="button" size="sm" variant="outline" onClick={() => resetPosition(posId)}>
+                          Back to flow
+                        </Button>
+                      )}
+                    </div>
+                    {pos ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        <Field label="X (px)">
+                          <Input type="number" value={pos.x} onChange={(e) => setPosition(posId, { x: Number(e.target.value) || 0 })} />
+                        </Field>
+                        <Field label="Y (px)">
+                          <Input type="number" value={pos.y} onChange={(e) => setPosition(posId, { y: Number(e.target.value) || 0 })} />
+                        </Field>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">In normal flow. Drag it in the live preview.</p>
+                    )}
+                  </div>
+                );
+              })
             )}
-          </>
+          </div>
         )}
 
-        {tab === 'extras' && !isHeader && (
+        {tab === 'menuItems' && !isHeader && (
           <TextField label="Copyright text" value={footer.copyright} onChange={set('footer.copyright')} />
         )}
 
-        {tab === 'blocks' && isHeader && (
+        {tab === 'blocks' && (
           <>
             <p className="text-xs text-muted-foreground">
-              Add extra parts to the header. Drag the logo, menu and blocks anywhere in the live preview. Click a part and use the arrow keys to nudge it 1px (Shift: 10px). Double-click a part to put it back in the normal flow.
+              Add extra parts to the {isHeader ? 'header' : 'footer'}. Drag the logo, menu items and blocks anywhere in the live preview. Click a part and use the arrow keys to nudge it 1px (Shift: 10px). Double-click a part to put it back in the normal flow.
             </p>
 
             <div className="flex items-end gap-2">

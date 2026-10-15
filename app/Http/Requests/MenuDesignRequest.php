@@ -34,6 +34,8 @@ class MenuDesignRequest extends FormRequest
             'design.layout.borderBottom'   => ['required', 'boolean'],
             'design.layout.borderWidth'    => ['required', 'integer', 'between:1,6'],
             'design.layout.columns'        => ['required', 'integer', 'between:1,6'],
+            'design.layout.footerHeight'       => ['nullable', 'integer', 'min:0', 'max:1000'],
+            'design.layout.footerHeightMobile' => ['nullable', 'integer', 'min:0', 'max:1600'],
 
             'design.logo'          => ['required', 'array'],
             'design.logo.type'     => ['required', 'in:none,text,image'],
@@ -79,7 +81,7 @@ class MenuDesignRequest extends FormRequest
             'design.zones.right'           => ['nullable', 'array', 'max:30'],
             'design.zones.right.*'         => ['string', 'max:40'],
             'design.blocks.*.id'           => ['required', 'string', 'max:40'],
-            'design.blocks.*.type'         => ['required', 'in:text,phone,search,social,button'],
+            'design.blocks.*.type'         => ['required', 'in:text,phone,search,social,button,menu-items,icon'],
             'design.blocks.*.zone'         => ['nullable', 'in:before,after'],
             'design.blocks.*.text'         => ['nullable', 'string', 'max:200'],
             'design.blocks.*.url'          => ['nullable', 'string', 'max:255'],
@@ -89,12 +91,21 @@ class MenuDesignRequest extends FormRequest
             'design.blocks.*.x'            => ['nullable', 'string', 'max:255'],
             'design.blocks.*.linkedin'     => ['nullable', 'string', 'max:255'],
             'design.blocks.*.youtube'      => ['nullable', 'string', 'max:255'],
+            'design.blocks.*.icon'         => ['nullable', 'in:user,cart,bag,search,wishlist'],
+            'design.blocks.*.size'         => ['nullable', 'integer', 'between:14,48'],
+            'design.blocks.*.badge'        => ['nullable', 'boolean'],
 
             // Free-placement offsets from drag & drop ({ logo: {x, y}, <blockId>: {x, y}, menu-item-<id>: {x, y} })
             'design.positions'             => ['nullable', 'array', 'max:40'],
             'design.positions.*'           => ['array'],
             'design.positions.*.x'         => ['required', 'numeric', 'between:-5000,5000'],
             'design.positions.*.y'         => ['required', 'numeric', 'between:-5000,5000'],
+
+            // Same, for the mobile layout (saved separately from desktop)
+            'design.positionsMobile'       => ['nullable', 'array', 'max:40'],
+            'design.positionsMobile.*'     => ['array'],
+            'design.positionsMobile.*.x'   => ['required', 'numeric', 'between:-5000,5000'],
+            'design.positionsMobile.*.y'   => ['required', 'numeric', 'between:-5000,5000'],
 
             'design.mobile'                  => ['required', 'array'],
             'design.mobile.breakpoint'       => ['required', 'integer', 'between:480,1200'],
@@ -135,8 +146,6 @@ class MenuDesignRequest extends FormRequest
             'design.footer.blocks.*.links'         => ['nullable', 'array', 'max:10'],
             'design.footer.blocks.*.links.*.label' => ['nullable', 'string', 'max:40'],
             'design.footer.blocks.*.links.*.url'   => $url(),
-            'design.layout.columns'      => ['nullable', 'integer', 'min:1', 'max:6'],
-            'design.layout.footerHeight' => ['nullable', 'integer', 'min:0', 'max:1000'],
         ];
     }
 }

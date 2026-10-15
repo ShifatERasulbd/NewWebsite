@@ -1,3 +1,14 @@
+import { Heart, Search, ShoppingBag, ShoppingCart, User } from 'lucide-react';
+
+// E-commerce icons that can be dragged into the header (each becomes an 'icon' block)
+export const HEADER_ICONS = [
+    { value: 'user', label: 'User account', Icon: User, url: '/account' },
+    { value: 'cart', label: 'Cart', Icon: ShoppingCart, url: '/cart' },
+    { value: 'bag', label: 'Shopping bag', Icon: ShoppingBag, url: '/cart' },
+    { value: 'search', label: 'Search', Icon: Search, url: '/search' },
+    { value: 'wishlist', label: 'Wishlist', Icon: Heart, url: '/wishlist' },
+];
+
 export const FONT_OPTIONS = [
     { label: 'System UI', value: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' },
     { label: 'Inter', value: 'Inter, system-ui, sans-serif' },

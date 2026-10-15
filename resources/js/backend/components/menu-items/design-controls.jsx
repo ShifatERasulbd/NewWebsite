@@ -6,7 +6,7 @@ import { Button } from '@/backend/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/backend/components/ui/card';
 import { Input } from '@/backend/components/ui/input';
 import { Label } from '@/backend/components/ui/label';
-import { FONT_OPTIONS, getPositions, resolveOrder } from '@/backend/pages/Menu-items/designDefaults';
+import { FONT_OPTIONS, getPositions, HEADER_ICONS, resolveOrder } from '@/backend/pages/Menu-items/designDefaults';
 import { flattenItems } from '@/backend/pages/Menu-items/utils';
 
 const selectClass =
@@ -22,6 +22,7 @@ const BLOCK_TYPES = [
   { label: 'Social icons', value: 'social' },
   { label: 'Button', value: 'button' },
   { label: 'Menu Items', value: 'menu-items' },
+  { label: 'Icon (user, cart, search...)', value: 'icon' },
 ];
 
 const SOCIAL_FIELDS = [
@@ -39,6 +40,7 @@ const BLOCK_DEFAULTS = {
   social: {},
   button: { text: 'Sign in', url: '/login', variant: 'outline' },
   'menu-items': { text: 'Menu Items ▾' },
+  icon: { icon: 'cart', url: '/cart', size: 22, badge: false },
 };
 
 // ---------- footer builder ----------
@@ -187,7 +189,10 @@ function TextField({ label, value, onChange, placeholder }) {
 }
 
 function BlockCard({ block, onUpdate, onRemove }) {
-  const typeLabel = BLOCK_TYPES.find((t) => t.value === block.type)?.label || block.type;
+  const typeLabel =
+    block.type === 'icon'
+      ? `Icon: ${HEADER_ICONS.find((i) => i.value === block.icon)?.label || 'Icon'}`
+      : BLOCK_TYPES.find((t) => t.value === block.type)?.label || block.type;
   const update = (key) => (value) => onUpdate(block.id, key, value);
 
   return (
@@ -205,6 +210,19 @@ function BlockCard({ block, onUpdate, onRemove }) {
       {block.type === 'phone' && <TextField label="Phone number" value={block.text} onChange={update('text')} />}
       {block.type === 'search' && <TextField label="Placeholder" value={block.text} onChange={update('text')} />}
       {block.type === 'menu-items' && <TextField label="Dropdown Label" value={block.text} onChange={update('text')} />}
+      {block.type === 'icon' && (
+        <>
+          <SelectField
+            label="Icon"
+            value={block.icon || 'cart'}
+            onChange={update('icon')}
+            options={HEADER_ICONS.map(({ value, label }) => ({ value, label }))}
+          />
+          <TextField label="Link URL" value={block.url} onChange={update('url')} placeholder="/cart" />
+          <RangeField label="Icon size" value={block.size || 22} onChange={update('size')} min={14} max={48} />
+          <ToggleField label="Show count badge (e.g. cart items)" value={block.badge} onChange={update('badge')} />
+        </>
+      )}
       {block.type === 'social' &&
         SOCIAL_FIELDS.map(([key, label]) => (
           <TextField key={key} label={label} value={block[key]} onChange={update(key)} placeholder="https://" />
@@ -466,7 +484,15 @@ function FooterImagesEditor({ footer, onChange, onUpload }) {
   );
 }
 
-export default function DesignControls({ design, items = [], onChange, onUploadLogo }) {
+export default function DesignControls({
+  design,
+  items = [],
+  onChange,
+  onUploadLogo,
+  selectedId = null,
+  onSelectPart,
+  device = 'desktop',
+}) {
   const { menuId } = useParams();
   const navigate = useNavigate();
   const [tab, setTab] = useState('layout');
@@ -476,7 +502,7 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
   const [newBlockType, setNewBlockType] = useState('text');
   const [newFooterType, setNewFooterType] = useState('menu');
   const isHeader = design.variant === 'header';
-  const { layout, logo, colors, typography, mobile, footer } = design;
+  const { layout, logo, colors, typography, mobile, footer, button } = design;
 
   // Flatten nested items so all menu items appear in the tab
   const flatMenuItems = flattenItems(items);
@@ -487,7 +513,9 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
   const footerBlocks = footer.blocks || [];
   const MAX_BLOCKS = 12;
 
-  const positions = getPositions(design);
+  // The footer keeps separate placements for desktop and mobile
+  const positionsKey = !isHeader && device === 'mobile' ? 'positionsMobile' : 'positions';
+  const positions = getPositions(design, positionsKey === 'positionsMobile');
 
   // ----- header blocks -----
 
@@ -497,16 +525,35 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
     onChange('blocks', [...blocks, { id, type: newBlockType, ...BLOCK_DEFAULTS[newBlockType] }]);
   };
 
+  // Clicking an icon in the palette adds it to the header flow; dragging it into the preview places it freely
+  const addIconBlock = (icon) => {
+    if (blocks.length >= MAX_BLOCKS) return;
+    const def = HEADER_ICONS.find((item) => item.value === icon);
+    if (!def) return;
+    const id = `icon-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+    onChange('blocks', [...blocks, { id, type: 'icon', icon, url: def.url, size: 22, badge: false }]);
+    if (onSelectPart) onSelectPart(id);
+  };
+
   const updateBlock = (id, key, value) =>
     onChange('blocks', blocks.map((b) => (b.id === id ? { ...b, [key]: value } : b)));
 
+  const dropPositions = (id) => {
+    ['positions', 'positionsMobile'].forEach((key) => {
+      const current = getPositions(design, key === 'positionsMobile');
+
+      if (current[id]) {
+        const next = { ...current };
+        delete next[id];
+        onChange(key, next);
+      }
+    });
+  };
+
   const removeBlock = (id) => {
     onChange('blocks', blocks.filter((b) => b.id !== id));
-    if (positions[id]) {
-      const next = { ...positions };
-      delete next[id];
-      onChange('positions', next);
-    }
+    dropPositions(id);
+    if (onSelectPart) onSelectPart(null);
   };
 
   // ----- footer blocks -----
@@ -521,11 +568,8 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
 
   const removeFooterBlock = (id) => {
     onChange('footer.blocks', footerBlocks.filter((b) => b.id !== id));
-    if (positions[id]) {
-      const next = { ...positions };
-      delete next[id];
-      onChange('positions', next);
-    }
+    dropPositions(id);
+    if (onSelectPart) onSelectPart(null);
   };
 
   const moveFooterBlock = (id, direction) => {
@@ -540,7 +584,7 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
   const applySampleFooter = () => {
     onChange('footer.blocks', SAMPLE_FOOTER_BLOCKS);
     onChange('layout.columns', 5);
-    onChange('positions', positions.logo ? { logo: positions.logo } : {});
+    onChange(positionsKey, positions.logo ? { logo: positions.logo } : {});
   };
 
   const orderedBlocks = resolveOrder(design)
@@ -551,6 +595,7 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
     if (id === 'logo') return 'Logo';
     if (id === 'cta') return 'Button (CTA)';
     const block = blocks.find((b) => b.id === id);
+    if (block?.type === 'icon') return `Icon: ${HEADER_ICONS.find((i) => i.value === block.icon)?.label || 'Icon'}`;
     return BLOCK_TYPES.find((t) => t.value === block?.type)?.label || id;
   };
 
@@ -572,7 +617,7 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
   });
 
   const setPosition = (id, patch) =>
-    onChange('positions', {
+    onChange(positionsKey, {
       ...positions,
       [id]: clampToHeader({ ...positions[id], ...patch }),
     });
@@ -580,12 +625,12 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
   const resetPosition = (id) => {
     const next = { ...positions };
     delete next[id];
-    onChange('positions', next);
+    onChange(positionsKey, next);
   };
 
   const placeItem = (posId) => {
     const count = Object.keys(positions).filter((key) => key.startsWith('menu-item-')).length;
-    onChange('positions', {
+    onChange(positionsKey, {
       ...positions,
       [posId]: clampToHeader({ x: 220 + count * 110, y: (layout.height - 20) / 2 }),
     });
@@ -651,28 +696,228 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
     </div>
   );
 
+  const logoSettings = (
+    <>
+            <SelectField
+              label="Logo type"
+              value={logo.type}
+              onChange={set('logo.type')}
+              options={[
+                { label: 'Text', value: 'text' },
+                { label: 'Image', value: 'image' },
+                { label: 'None', value: 'none' },
+              ]}
+            />
+            {logo.type === 'text' && (
+              <TextField
+                label="Logo text"
+                value={logo.text}
+                onChange={set('logo.text')}
+                placeholder="AVANT"
+              />
+            )}
+            {logo.type === 'image' && (
+              <>
+                <Field label="Logo image">
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    onChange={handleFile}
+                    disabled={uploading}
+                    className="block w-full text-sm file:mr-3 file:rounded-md file:border file:border-input file:bg-transparent file:px-3 file:py-1.5 file:text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {uploading ? 'Uploading...' : 'PNG, JPG, WEBP or GIF, up to 2 MB.'}
+                  </p>
+                  {uploadError && <p className="text-xs text-destructive">{uploadError}</p>}
+                </Field>
+
+                {logo.imageUrl && (
+                  <div className="space-y-2 rounded-md border p-3">
+                    <img src={logo.imageUrl} alt="Logo preview" style={{ height: logo.height, maxWidth: '100%' }} />
+                    <Button type="button" size="sm" variant="outline" onClick={() => set('logo.imageUrl')('')}>
+                      Remove image
+                    </Button>
+                  </div>
+                )}
+
+                <TextField label="Image URL" value={logo.imageUrl} onChange={set('logo.imageUrl')} placeholder="/frontend/logo.png" />
+              </>
+            )}
+            {logo.type !== 'none' && (
+              <RangeField
+                label={logo.type === 'image' ? 'Resize logo (height)' : 'Logo height'}
+                value={logo.height}
+                onChange={set('logo.height')}
+                min={16}
+                max={96}
+              />
+            )}
+    </>
+  );
+
+  // ----- selected part: only that part's settings are shown -----
+
+  const selectedMenuItem =
+    isHeader && selectedId && String(selectedId).startsWith('menu-item-')
+      ? flatMenuItems.find((item) => `menu-item-${item.id}` === selectedId)
+      : null;
+  const selectedBlock = isHeader && selectedId ? blocks.find((b) => b.id === selectedId) : null;
+  const selectedFooterBlock = !isHeader && selectedId ? footerBlocks.find((b) => b.id === selectedId) : null;
+
+  let selectedKind = null;
+  let selectedLabel = '';
+
+  if (selectedId === 'logo' && logo.type !== 'none') {
+    selectedKind = 'logo';
+    selectedLabel = 'Logo';
+  } else if (isHeader && selectedId === 'cta') {
+    selectedKind = 'cta';
+    selectedLabel = 'Button (CTA)';
+  } else if (selectedMenuItem) {
+    selectedKind = 'menuItem';
+    selectedLabel = `Menu item: ${selectedMenuItem.title}`;
+  } else if (selectedBlock) {
+    selectedKind = 'block';
+    selectedLabel = partLabel(selectedBlock.id);
+  } else if (selectedFooterBlock) {
+    selectedKind = 'footerBlock';
+    selectedLabel = footerBlockLabel(selectedFooterBlock);
+  }
+
+  const partPlacement = (id, hint) => {
+    const pos = positions[id];
+
+    return (
+      <div className="space-y-3 border-t pt-4">
+        <p className="text-sm font-medium">Placement</p>
+        {pos ? (
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="X (px)">
+                <Input type="number" value={pos.x} onChange={(e) => setPosition(id, { x: e.target.value })} />
+              </Field>
+              <Field label="Y (px)">
+                <Input type="number" value={pos.y} onChange={(e) => setPosition(id, { y: e.target.value })} />
+              </Field>
+            </div>
+            <Button type="button" size="sm" variant="outline" onClick={() => resetPosition(id)}>
+              Back to flow
+            </Button>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">{hint}</p>
+        )}
+      </div>
+    );
+  };
+
+  const selectedPanel = (
+    <>
+      {selectedKind === 'logo' && (
+        <>
+          {logoSettings}
+          {partPlacement('logo', 'In the normal flow. Drag it in the preview to place it freely.')}
+        </>
+      )}
+
+      {selectedKind === 'cta' && (
+        <>
+          <ToggleField label="Show button" value={button.enabled} onChange={set('button.enabled')} />
+          <TextField label="Button label" value={button.label} onChange={set('button.label')} />
+          <TextField label="Button URL" value={button.url} onChange={set('button.url')} placeholder="/contact" />
+          <RangeField label="Corner radius" value={button.radius} onChange={set('button.radius')} min={0} max={32} />
+          <ColorField label="Button background" value={colors.buttonBg} onChange={set('colors.buttonBg')} />
+          <ColorField label="Button text" value={colors.buttonText} onChange={set('colors.buttonText')} />
+          {partPlacement('cta', 'In the normal flow. Drag it in the preview to place it freely.')}
+        </>
+      )}
+
+      {selectedKind === 'menuItem' && (
+        <>
+          <p className="text-xs text-muted-foreground">
+            Font and colors are shared by all menu items. Use All settings and the Text or Colors tabs to change them.
+          </p>
+          {partPlacement(selectedId, '')}
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                resetPosition(selectedId);
+                if (onSelectPart) onSelectPart(null);
+              }}
+            >
+              Remove from header
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => navigate(`/menus/${menuId}`)}>
+              Manage Items
+            </Button>
+          </div>
+        </>
+      )}
+
+      {selectedKind === 'block' && (
+        <>
+          <BlockCard block={selectedBlock} onUpdate={updateBlock} onRemove={removeBlock} />
+          {partPlacement(selectedBlock.id, 'In the normal flow. Drag it in the preview to place it freely.')}
+        </>
+      )}
+
+      {selectedKind === 'footerBlock' && (
+        <>
+          <FooterBlockCard
+            block={selectedFooterBlock}
+            index={footerBlocks.indexOf(selectedFooterBlock)}
+            total={footerBlocks.length}
+            menuItems={flatMenuItems}
+            onUpdate={updateFooterBlock}
+            onRemove={removeFooterBlock}
+            onMove={moveFooterBlock}
+          />
+          {partPlacement(selectedFooterBlock.id, 'In the grid. Drag it in the preview to place it freely.')}
+        </>
+      )}
+    </>
+  );
+
   return (
     <Card className="h-fit">
       <CardHeader className="pb-3">
         <CardTitle className="text-base">
           {isHeader ? 'Header' : 'Footer'} design
         </CardTitle>
-        <div className="flex flex-wrap gap-1.5 pt-2">
-          {tabs.map((item) => (
-            <Button
-              key={item.id}
-              type="button"
-              size="sm"
-              variant={tab === item.id ? 'default' : 'outline'}
-              onClick={() => setTab(item.id)}
-            >
-              {item.label}
+        {selectedKind ? (
+          <div className="flex items-center justify-between gap-2 pt-2">
+            <span className="text-sm font-medium">{selectedLabel}</span>
+            <Button type="button" size="sm" variant="outline" onClick={() => onSelectPart && onSelectPart(null)}>
+              All settings
             </Button>
-          ))}
-        </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-1.5 pt-2">
+            {tabs.map((item) => (
+              <Button
+                key={item.id}
+                type="button"
+                size="sm"
+                variant={tab === item.id ? 'default' : 'outline'}
+                onClick={() => setTab(item.id)}
+              >
+                {item.label}
+              </Button>
+            ))}
+          </div>
+        )}
       </CardHeader>
 
       <CardContent className="space-y-4">
+        {selectedKind && selectedPanel}
+
+        {!selectedKind && (
+          <>
         {tab === 'layout' && (
           <>
             <SelectField
@@ -739,66 +984,7 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
           </>
         )}
 
-        {tab === 'logo' && (
-          <>
-            <SelectField
-              label="Logo type"
-              value={logo.type}
-              onChange={set('logo.type')}
-              options={[
-                { label: 'Text', value: 'text' },
-                { label: 'Image', value: 'image' },
-                { label: 'None', value: 'none' },
-              ]}
-            />
-            {logo.type === 'text' && (
-              <TextField
-                label="Logo text"
-                value={logo.text}
-                onChange={set('logo.text')}
-                placeholder="AVANT"
-              />
-            )}
-            {logo.type === 'image' && (
-              <>
-                <Field label="Logo image">
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,image/gif"
-                    onChange={handleFile}
-                    disabled={uploading}
-                    className="block w-full text-sm file:mr-3 file:rounded-md file:border file:border-input file:bg-transparent file:px-3 file:py-1.5 file:text-sm"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {uploading ? 'Uploading...' : 'PNG, JPG, WEBP or GIF, up to 2 MB.'}
-                  </p>
-                  {uploadError && <p className="text-xs text-destructive">{uploadError}</p>}
-                </Field>
-
-                {logo.imageUrl && (
-                  <div className="space-y-2 rounded-md border p-3">
-                    <img src={logo.imageUrl} alt="Logo preview" style={{ height: logo.height, maxWidth: '100%' }} />
-                    <Button type="button" size="sm" variant="outline" onClick={() => set('logo.imageUrl')('')}>
-                      Remove image
-                    </Button>
-                  </div>
-                )}
-
-                <TextField label="Image URL" value={logo.imageUrl} onChange={set('logo.imageUrl')} placeholder="/frontend/logo.png" />
-              </>
-            )}
-            {logo.type !== 'none' && (
-              <RangeField
-                label={logo.type === 'image' ? 'Resize logo (height)' : 'Logo height'}
-                value={logo.height}
-                onChange={set('logo.height')}
-                min={16}
-                max={96}
-              />
-            )}
-          </>
-        )}
+        {tab === 'logo' && logoSettings}
 
         {tab === 'colors' && (
           <>
@@ -929,6 +1115,33 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
               Add extra parts to the header. Drag the logo and blocks anywhere in the live preview. Click a part and use the arrow keys to nudge it 1px (Shift: 10px). Double-click a part to put it back in the normal flow.
             </p>
 
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Icons</p>
+              <p className="text-xs text-muted-foreground">
+                Drag an icon into the header preview to place it, or click it to add it.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {HEADER_ICONS.map(({ value, label, Icon }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    draggable
+                    title={label}
+                    disabled={blocks.length >= MAX_BLOCKS}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('application/x-header-icon', value);
+                      e.dataTransfer.setData('text/plain', label);
+                      e.dataTransfer.effectAllowed = 'copy';
+                    }}
+                    onClick={() => addIconBlock(value)}
+                    className="flex h-10 w-10 cursor-grab items-center justify-center rounded-md border hover:bg-muted active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Icon className="h-5 w-5" />
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="flex items-end gap-2">
               <div className="flex-1">
                 <SelectField label="Block type" value={newBlockType} onChange={setNewBlockType} options={BLOCK_TYPES} />
@@ -1004,6 +1217,8 @@ export default function DesignControls({ design, items = [], onChange, onUploadL
                 ]}
               />
             )}
+          </>
+        )}
           </>
         )}
       </CardContent>

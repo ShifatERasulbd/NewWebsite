@@ -1,7 +1,7 @@
 import { Menu as MenuIcon, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 
-import { getPositions, resolveOrder, resolveZones } from '@/backend/pages/Menu-items/designDefaults';
+import { getPositions, HEADER_ICONS, resolveOrder, resolveZones } from '@/backend/pages/Menu-items/designDefaults';
 import { flattenItems } from '@/backend/pages/Menu-items/utils';
 
 function textStyle(design, color) {
@@ -128,7 +128,57 @@ const SOCIAL_BADGES = [
 function Block({ block, design, items = [] }) {
   const { colors, button, typography, dropdown } = design;
   const [open, setOpen] = useState(false);
+  const [hover, setHover] = useState(false);
   const stop = (e) => e.preventDefault();
+
+  if (block.type === 'icon') {
+    const def = HEADER_ICONS.find((icon) => icon.value === block.icon) || HEADER_ICONS[0];
+    const Icon = def.Icon;
+
+    return (
+      <a
+        href="#"
+        onClick={stop}
+        title={def.label}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        style={{
+          position: 'relative',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: hover ? colors.hover : colors.text,
+          cursor: 'pointer',
+          transition: 'color 0.15s',
+        }}
+      >
+        <Icon size={block.size || 22} strokeWidth={1.75} />
+        {block.badge && (
+          <span
+            style={{
+              position: 'absolute',
+              top: -6,
+              right: -9,
+              minWidth: 16,
+              height: 16,
+              padding: '0 4px',
+              borderRadius: 8,
+              background: colors.active,
+              color: colors.background,
+              fontFamily: typography.fontFamily,
+              fontSize: 10,
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            2
+          </span>
+        )}
+      </a>
+    );
+  }
 
   if (block.type === 'text') {
     return <span style={{ ...textStyle(design, colors.text), cursor: 'default' }}>{block.text}</span>;
@@ -258,7 +308,7 @@ function MobileList({ design, items }) {
   const { colors, layout } = design;
   const blocks = resolveOrder(design)
     .map((id) => (design.blocks || []).find((b) => b.id === id))
-    .filter(Boolean);
+    .filter((block) => block && block.type !== 'icon');
 
   return (
     <div style={{ background: colors.background, borderTop: `1px solid ${colors.border}` }}>
@@ -328,9 +378,23 @@ function FreePart({ id, pos, edit, style, children }) {
   );
 }
 
-function HeaderPreview({ design, items, mobile, onMovePart, onResetPart }) {
+function HeaderPreview({
+  design,
+  items,
+  mobile,
+  onMovePart,
+  onResetPart,
+  onDropIcon,
+  selectedId: selectedIdProp,
+  onSelectPart,
+}) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState(null);
+  const [localSelected, setLocalSelected] = useState(null);
+  const selectedId = selectedIdProp !== undefined ? selectedIdProp : localSelected;
+  const setSelectedId = (id) => {
+    setLocalSelected(id);
+    if (onSelectPart) onSelectPart(id);
+  };
   const innerRef = useRef(null);
   const dragRef = useRef(null);
   const { layout, colors, button, mobile: mobileSettings } = design;
@@ -366,6 +430,16 @@ function HeaderPreview({ design, items, mobile, onMovePart, onResetPart }) {
       </button>
     );
 
+    const iconBlocks = (design.blocks || []).filter((block) => block.type === 'icon');
+    const icons =
+      iconBlocks.length > 0 ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          {iconBlocks.map((block) => (
+            <Block key={block.id} block={block} design={design} items={items} />
+          ))}
+        </div>
+      ) : null;
+
     return (
       <div style={bar}>
         <div style={{ ...inner, justifyContent: 'space-between' }}>
@@ -373,11 +447,15 @@ function HeaderPreview({ design, items, mobile, onMovePart, onResetPart }) {
             <>
               {burger}
               <Logo design={design} />
+              {icons}
             </>
           ) : (
             <>
               <Logo design={design} />
-              {burger}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                {icons}
+                {burger}
+              </div>
             </>
           )}
         </div>
@@ -546,13 +624,34 @@ function HeaderPreview({ design, items, mobile, onMovePart, onResetPart }) {
   return (
     <div
       style={bar}
+      onPointerDown={(e) => {
+        // Clicking empty space in the header clears the selection
+        if (editing && !e.target.closest('[data-part]')) setSelectedId(null);
+      }}
       onDragOver={(e) => {
-        if (editing && Array.from(e.dataTransfer.types).includes('application/x-menu-item')) {
+        const types = Array.from(e.dataTransfer.types);
+
+        if (editing && (types.includes('application/x-menu-item') || types.includes('application/x-header-icon'))) {
           e.preventDefault();
           e.dataTransfer.dropEffect = 'copy';
         }
       }}
       onDrop={(e) => {
+        const iconName = e.dataTransfer.getData('application/x-header-icon');
+
+        if (editing && iconName && onDropIcon && innerRef.current) {
+          e.preventDefault();
+          const box = innerRef.current.getBoundingClientRect();
+          onDropIcon(
+            iconName,
+            clampPos(
+              { x: Math.round(e.clientX - box.left - 11), y: Math.round(e.clientY - box.top - 11) },
+              { offsetWidth: 24, offsetHeight: 24 }
+            )
+          );
+          return;
+        }
+
         const id = e.dataTransfer.getData('application/x-menu-item');
         if (!editing || !id || !innerRef.current) return;
         e.preventDefault();
@@ -747,9 +846,23 @@ function FooterImages({ design, align }) {
   );
 }
 
-function FooterPreview({ design, items, mobile, onMovePart, onResetPart, onResizeFooter }) {
+function FooterPreview({
+  design,
+  items,
+  mobile,
+  onMovePart,
+  onResetPart,
+  onResizeFooter,
+  selectedId: selectedIdProp,
+  onSelectPart,
+}) {
   const { layout, colors, typography, footer } = design;
-  const [selectedId, setSelectedId] = useState(null);
+  const [localSelected, setLocalSelected] = useState(null);
+  const selectedId = selectedIdProp !== undefined ? selectedIdProp : localSelected;
+  const setSelectedId = (id) => {
+    setLocalSelected(id);
+    if (onSelectPart) onSelectPart(id);
+  };
   const footerRef = useRef(null);
   const dragRef = useRef(null);
 
@@ -865,6 +978,10 @@ function FooterPreview({ design, items, mobile, onMovePart, onResetPart, onResiz
 
   return (
     <footer
+      onPointerDown={(e) => {
+        // Clicking empty space in the footer clears the selection
+        if (editing && !e.target.closest('[data-part], [data-keep-selection]')) setSelectedId(null);
+      }}
       style={{
         background: colors.background,
         borderTop: layout.borderBottom ? `${layout.borderWidth}px solid ${colors.border}` : 'none',
@@ -966,6 +1083,7 @@ function FooterPreview({ design, items, mobile, onMovePart, onResetPart, onResiz
         {resizeHandlers && (
           <div
             {...resizeHandlers}
+            data-keep-selection
             title="Drag to change footer height (double-click to reset)"
             style={{
               position: 'absolute',
@@ -1028,7 +1146,17 @@ function Skeleton() {
   );
 }
 
-export function MenuPreview({ design, items = [], device = 'desktop', onMovePart, onResetPart, onResizeFooter }) {
+export function MenuPreview({
+  design,
+  items = [],
+  device = 'desktop',
+  onMovePart,
+  onResetPart,
+  onResizeFooter,
+  onDropIcon,
+  selectedId,
+  onSelectPart,
+}) {
   const mobile = device === 'mobile';
   const isFooter = design.variant === 'footer';
 
@@ -1055,6 +1183,8 @@ export function MenuPreview({ design, items = [], device = 'desktop', onMovePart
             onMovePart={onMovePart}
             onResetPart={onResetPart}
             onResizeFooter={onResizeFooter}
+            selectedId={selectedId}
+            onSelectPart={onSelectPart}
           />
         </>
       ) : (
@@ -1065,6 +1195,9 @@ export function MenuPreview({ design, items = [], device = 'desktop', onMovePart
             mobile={mobile}
             onMovePart={onMovePart}
             onResetPart={onResetPart}
+            onDropIcon={onDropIcon}
+            selectedId={selectedId}
+            onSelectPart={onSelectPart}
           />
           <Skeleton />
         </>

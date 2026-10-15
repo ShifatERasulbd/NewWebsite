@@ -11,7 +11,7 @@ import { useAppContext } from '@/backend/context/AppContext';
 import { fetchMenuDesign, saveMenuDesign, uploadMenuLogo } from '@/backend/pages/Menu/api';
 
 import { fetchMenuItems } from './api';
-import { detectVariant, getDefaultDesign, mergeDesign, setIn } from './designDefaults';
+import { detectVariant, getDefaultDesign, HEADER_ICONS, mergeDesign, setIn } from './designDefaults';
 
 export default function DesignMenu() {
   const { menuId } = useParams();
@@ -23,6 +23,7 @@ export default function DesignMenu() {
   const [design, setDesign] = useState(null);
   const [savedSnapshot, setSavedSnapshot] = useState('');
   const [device, setDevice] = useState('desktop');
+  const [selectedId, setSelectedId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -66,6 +67,31 @@ export default function DesignMenu() {
   const handleChange = (path, value) => setDesign((previous) => setIn(previous, path, value));
 
   const handleReset = () => setDesign(getDefaultDesign(design.variant));
+
+  // An icon dragged from the panel into the header becomes an icon block placed where it was dropped
+  const handleDropIcon = (icon, pos) => {
+    const def = HEADER_ICONS.find((item) => item.value === icon);
+
+    if (!def) return;
+
+    if ((design.blocks || []).length >= 12) {
+      toast.error('You can add up to 12 blocks.', { style: { color: '#dc2626' } });
+      return;
+    }
+
+    const id = `icon-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+
+    setDesign((previous) => {
+      const current = previous.positions && !Array.isArray(previous.positions) ? previous.positions : {};
+
+      return {
+        ...previous,
+        blocks: [...(previous.blocks || []), { id, type: 'icon', icon, url: def.url, size: 22, badge: false }],
+        positions: { ...current, [id]: pos },
+      };
+    });
+    setSelectedId(id);
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -126,7 +152,10 @@ export default function DesignMenu() {
                 type="button"
                 size="sm"
                 variant={device === 'desktop' ? 'default' : 'outline'}
-                onClick={() => setDevice('desktop')}
+                onClick={() => {
+                  setDevice('desktop');
+                  setSelectedId(null);
+                }}
               >
                 <Monitor className="mr-1.5 h-4 w-4" />
                 Desktop
@@ -135,7 +164,10 @@ export default function DesignMenu() {
                 type="button"
                 size="sm"
                 variant={device === 'mobile' ? 'default' : 'outline'}
-                onClick={() => setDevice('mobile')}
+                onClick={() => {
+                  setDevice('mobile');
+                  setSelectedId(null);
+                }}
               >
                 <Smartphone className="mr-1.5 h-4 w-4" />
                 Mobile
@@ -147,6 +179,9 @@ export default function DesignMenu() {
               design={design}
               items={items}
               device={device}
+              selectedId={selectedId}
+              onSelectPart={setSelectedId}
+              onDropIcon={handleDropIcon}
               onResizeFooter={(height) =>
                 handleChange(device === 'mobile' ? 'layout.footerHeightMobile' : 'layout.footerHeight', height)
               }
@@ -177,6 +212,9 @@ export default function DesignMenu() {
           design={design}
            items={items}
           onChange={handleChange}
+          selectedId={selectedId}
+          onSelectPart={setSelectedId}
+          device={device}
           onUploadLogo={(file) => uploadMenuLogo(menuId, file)}
         />
       </div>

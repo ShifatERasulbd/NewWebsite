@@ -14,6 +14,7 @@ class MenuDesignRequest extends FormRequest
     public function rules(): array
     {
         $hex = ['required', 'regex:/^#[0-9a-fA-F]{6}$/'];
+        $url = fn (int $max = 255) => ['nullable', 'string', "max:$max", 'regex:/^(https?:\/\/|\/|#|mailto:|tel:)/i'];
 
         return [
             'design'          => ['required', 'array'],
@@ -89,12 +90,50 @@ class MenuDesignRequest extends FormRequest
             'design.blocks.*.linkedin'     => ['nullable', 'string', 'max:255'],
             'design.blocks.*.youtube'      => ['nullable', 'string', 'max:255'],
 
+            // NEW: free-placement offsets from drag & drop ({ logo: {x, y}, menu: {x, y}, <blockId>: {x, y} })
+            'design.positions'             => ['nullable', 'array', 'max:40'],
+            'design.positions.*'           => ['array'],
+            'design.positions.*.x'         => ['required', 'numeric', 'between:-5000,5000'],
+            'design.positions.*.y'         => ['required', 'numeric', 'between:-5000,5000'],
+
             'design.mobile'                  => ['required', 'array'],
             'design.mobile.breakpoint'       => ['required', 'integer', 'between:480,1200'],
             'design.mobile.burgerPosition'   => ['required', 'in:left,right'],
 
             'design.footer'             => ['required', 'array'],
             'design.footer.copyright'   => ['nullable', 'string', 'max:200'],
+
+            // NEW: footer images + blocks (needed once the footer blocks/images feature is applied)
+            'design.footer.imagesSection'          => ['sometimes', 'array'],
+            'design.footer.imagesSection.enabled'  => ['sometimes', 'boolean'],
+            'design.footer.imagesSection.title'    => ['sometimes', 'nullable', 'string', 'max:80'],
+            'design.footer.imagesSection.position' => ['sometimes', 'in:top,bottom'],
+            'design.footer.imagesSection.align'    => ['sometimes', 'in:flex-start,center,flex-end'],
+            'design.footer.imagesSection.height'   => ['sometimes', 'integer', 'between:16,200'],
+            'design.footer.imagesSection.gap'      => ['sometimes', 'integer', 'between:0,64'],
+
+            'design.footer.images'        => ['sometimes', 'array', 'max:12'],
+            'design.footer.images.*.id'   => ['required', 'string', 'max:40'],
+            'design.footer.images.*.url'  => $url(500),
+            'design.footer.images.*.alt'  => ['nullable', 'string', 'max:120'],
+            'design.footer.images.*.link' => $url(),
+
+            'design.footer.blocks'                 => ['sometimes', 'array', 'max:12'],
+            'design.footer.blocks.*.id'            => ['required', 'string', 'max:40'],
+            'design.footer.blocks.*.type'          => ['required', 'in:menu,text,contact,social,newsletter'],
+            'design.footer.blocks.*.title'         => ['nullable', 'string', 'max:80'],
+            'design.footer.blocks.*.span'          => ['required', 'integer', 'between:1,6'],
+            'design.footer.blocks.*.x'             => ['required', 'integer', 'between:-2000,2000'],
+            'design.footer.blocks.*.y'             => ['required', 'integer', 'between:-2000,2000'],
+            'design.footer.blocks.*.text'          => ['nullable', 'string', 'max:1000'],
+            'design.footer.blocks.*.address'       => ['nullable', 'string', 'max:200'],
+            'design.footer.blocks.*.phone'         => ['nullable', 'string', 'max:40'],
+            'design.footer.blocks.*.email'         => ['nullable', 'string', 'max:120'],
+            'design.footer.blocks.*.placeholder'   => ['nullable', 'string', 'max:80'],
+            'design.footer.blocks.*.buttonLabel'   => ['nullable', 'string', 'max:40'],
+            'design.footer.blocks.*.links'         => ['nullable', 'array', 'max:10'],
+            'design.footer.blocks.*.links.*.label' => ['nullable', 'string', 'max:40'],
+            'design.footer.blocks.*.links.*.url'   => $url(),
         ];
     }
 }

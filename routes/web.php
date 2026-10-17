@@ -4,20 +4,18 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\UserController;
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\MenuItemsController;
+use App\Http\Controllers\PublicSiteController;
+use Illuminate\Support\Facades\Route;
 
-// 1. Root directory serves the public frontend view (with header and footer)
-Route::get('/', function () {
-    return view('frontend'); // Change 'frontend' to whatever blade file holds your public layout
-});
-
-// Optional: If you have public pages like dynamic frontend pages, you can add them here:
-// Route::get('/{slug}', [FrontendController::class, 'show']);
-
-// API routes (unchanged)
+// API routes
 Route::prefix('api')->group(function () {
+    // ---------- PUBLIC (no auth) ----------
+    Route::get('/public/layout', [PublicSiteController::class, 'layout']);
+    Route::get('/public/pages/{slug}', [PublicSiteController::class, 'page']);
+
+    // ---------- AUTH ----------
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:6,1');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:6,1');
@@ -34,12 +32,12 @@ Route::prefix('api')->group(function () {
         // pages
         Route::apiResource('/pages', PageController::class);
 
-        // New Menu Routes
-        Route::apiResource('menus', MenuController::class);
+        // menus (custom routes BEFORE apiResource so "reorder" isn't treated as {menu})
         Route::post('menus/reorder', [MenuController::class, 'reorder']);
         Route::get('menus/{menu}/design', [MenuController::class, 'design']);
         Route::put('menus/{menu}/design', [MenuController::class, 'updateDesign']);
         Route::post('menus/{menu}/logo', [MenuController::class, 'uploadLogo']);
+        Route::apiResource('menus', MenuController::class);
 
         // menu items
         Route::post('menu-items/reorder', [MenuItemsController::class, 'reorder']);
@@ -55,6 +53,11 @@ Route::prefix('admin')->group(function () {
     Route::get('/forgot-password', fn () => view('app'))->name('password.request');
     Route::get('/reset-password/{token}', fn () => view('app'))->name('password.reset');
 
-    // catch-all for React Router inside admin (keep LAST)
+    // catch-all for React Router inside admin
     Route::get('/{path}', fn () => view('app'))->where('path', '.*');
 });
+
+// Public frontend: header/footer layout on "/" and every other public path.
+// Keep this LAST.
+Route::get('/{any?}', fn () => view('frontend'))
+    ->where('any', '^(?!api|admin|storage|build|vendor).*$');

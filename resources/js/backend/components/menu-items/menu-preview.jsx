@@ -1,8 +1,21 @@
 import { Menu as MenuIcon, X } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { createContext, useContext, useRef, useState } from 'react';
 
 import { getPositions, HEADER_ICONS, resolveOrder, resolveZones } from '@/backend/pages/Menu-items/designDefaults';
 import { flattenItems } from '@/backend/pages/Menu-items/utils';
+
+// Live mode = the public website (real links). Off = the admin editor preview (links disabled).
+export const LiveContext = createContext(false);
+
+function linkProps(live, url) {
+  if (live && url) {
+    const external = /^https?:\/\//i.test(url);
+
+    return external ? { href: url, target: '_blank', rel: 'noopener noreferrer' } : { href: url };
+  }
+
+  return { href: '#', onClick: (e) => e.preventDefault() };
+}
 
 function textStyle(design, color) {
   const { typography } = design;
@@ -52,6 +65,7 @@ function Logo({ design }) {
 function NavItem({ item, design, depth = 0, active = false }) {
   const [hover, setHover] = useState(false);
   const [open, setOpen] = useState(false);
+  const live = useContext(LiveContext);
   const { colors, dropdown } = design;
   const children = item.children || [];
   const isTop = depth === 0;
@@ -77,8 +91,7 @@ function NavItem({ item, design, depth = 0, active = false }) {
       }}
     >
       <a
-        href="#"
-        onClick={(e) => e.preventDefault()}
+        {...linkProps(live, item.url)}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         style={{
@@ -126,6 +139,7 @@ const SOCIAL_BADGES = [
 ];
 
 function Block({ block, design, items = [] }) {
+  const live = useContext(LiveContext);
   const { colors, button, typography, dropdown } = design;
   const [open, setOpen] = useState(false);
   const [hover, setHover] = useState(false);
@@ -137,8 +151,7 @@ function Block({ block, design, items = [] }) {
 
     return (
       <a
-        href="#"
-        onClick={stop}
+        {...linkProps(live, block.url)}
         title={def.label}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
@@ -186,7 +199,10 @@ function Block({ block, design, items = [] }) {
 
   if (block.type === 'phone') {
     return (
-      <a href="#" onClick={stop} style={textStyle(design, colors.text)}>
+      <a
+        {...linkProps(live, block.text ? `tel:${String(block.text).replace(/[^+\d]/g, '')}` : '')}
+        style={textStyle(design, colors.text)}
+      >
         {block.text || 'Phone number'}
       </a>
     );
@@ -286,8 +302,7 @@ function Block({ block, design, items = [] }) {
 
     return (
       <a
-        href="#"
-        onClick={stop}
+        {...linkProps(live, block.url)}
         style={{
           ...textStyle(design, outline ? colors.buttonBg : colors.buttonText),
           background: outline ? 'transparent' : colors.buttonBg,
@@ -378,7 +393,7 @@ function FreePart({ id, pos, edit, style, children }) {
   );
 }
 
-function HeaderPreview({
+export function HeaderPreview({
   design,
   items,
   mobile,
@@ -388,6 +403,7 @@ function HeaderPreview({
   selectedId: selectedIdProp,
   onSelectPart,
 }) {
+  const live = useContext(LiveContext);
   const [menuOpen, setMenuOpen] = useState(false);
   const [localSelected, setLocalSelected] = useState(null);
   const selectedId = selectedIdProp !== undefined ? selectedIdProp : localSelected;
@@ -466,8 +482,7 @@ function HeaderPreview({
 
   const cta = button.enabled ? (
     <a
-      href="#"
-      onClick={(e) => e.preventDefault()}
+      {...linkProps(live, button.url)}
       style={{
         ...textStyle(design, colors.buttonText),
         background: colors.buttonBg,
@@ -671,6 +686,7 @@ function HeaderPreview({
 }
 
 function FooterBlock({ block, design }) {
+  const live = useContext(LiveContext);
   const { colors, typography } = design;
   const stop = (e) => e.preventDefault();
   const links = (block.links || []).filter((link) => link.label || link.url);
@@ -703,7 +719,7 @@ function FooterBlock({ block, design }) {
           <ul style={{ margin: 0, padding: 0, display: 'grid', gap: 14 }}>
             {links.map((link, index) => (
               <li key={index} style={{ listStyle: 'none' }}>
-                <a href="#" onClick={stop} style={textStyle(design, colors.text)}>
+                <a {...linkProps(live, link.url)} style={textStyle(design, colors.text)}>
                   {link.label}
                 </a>
               </li>
@@ -750,8 +766,7 @@ function FooterBlock({ block, design }) {
             return (
               <a
                 key={index}
-                href="#"
-                onClick={stop}
+                {...linkProps(live, link.url)}
                 style={{
                   width: 34,
                   height: 34,
@@ -824,6 +839,7 @@ function FooterBlock({ block, design }) {
 }
 
 function FooterImages({ design, align }) {
+  const live = useContext(LiveContext);
   const { footer, colors } = design;
   const section = footer.imagesSection || {};
   const images = (footer.images || []).filter((image) => image.url);
@@ -838,15 +854,27 @@ function FooterImages({ design, align }) {
         </div>
       ) : null}
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: align, gap: section.gap ?? 8 }}>
-        {images.map((image) => (
-          <img key={image.id} src={image.url} alt={image.alt || ''} style={{ height: section.height || 28, width: 'auto' }} />
-        ))}
+        {images.map((image) => {
+          const img = (
+            <img src={image.url} alt={image.alt || ''} style={{ height: section.height || 28, width: 'auto' }} />
+          );
+
+          return live && image.link ? (
+            <a key={image.id} {...linkProps(live, image.link)} style={{ display: 'inline-flex' }}>
+              {img}
+            </a>
+          ) : (
+            <span key={image.id} style={{ display: 'inline-flex' }}>
+              {img}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-function FooterPreview({
+export function FooterPreview({
   design,
   items,
   mobile,

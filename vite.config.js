@@ -11,7 +11,11 @@ export default defineConfig({
     plugins: [
         react(),
         laravel({
-            input: ['resources/css/app.css', 'resources/js/app.js'],
+            input: [
+                'resources/css/app.css',
+                'resources/js/app.js',            // admin SPA
+                'resources/js/frontend/main.jsx', // public site (header/footer layout)
+            ],
             refresh: true,
         }),
         tailwindcss(),

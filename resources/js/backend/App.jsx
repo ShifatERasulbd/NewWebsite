@@ -75,7 +75,7 @@ export default function App() {
                 <Suspense fallback={<div className="text-center p-10">Loading...</div>}>
                     <Routes>
                         <Route
-                            path="/"
+                            path="/login"
                             element={
                                 <AuthScreen>
                                     <LoginForm />
@@ -111,6 +111,7 @@ export default function App() {
                         />
 
                         <Route element={<AppLayout />}>
+                            <Route path="/" element={<Dashboard />} />
                             <Route path="/dashboard" element={<Dashboard />} />
 
                             {/* users */}

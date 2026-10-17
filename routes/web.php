@@ -49,7 +49,8 @@ Route::prefix('api')->group(function () {
 
 // SPA under /admin
 Route::prefix('admin')->group(function () {
-    Route::get('/', fn () => view('app'))->name('login');
+    Route::get('/', fn () => view('app'));
+    Route::get('/login', fn () => view('app'))->name('login');
     Route::get('/register', fn () => view('app'))->name('register');
     Route::get('/forgot-password', fn () => view('app'))->name('password.request');
     Route::get('/reset-password/{token}', fn () => view('app'))->name('password.reset');

@@ -29,6 +29,7 @@ import {
     SidebarMenuSubItem,
 } from '@/backend/components/ui/sidebar';
 import { useAppContext } from '@/backend/context/AppContext';
+import { logoutCurrentUser } from '@/backend/lib/auth';
 import { fetchMenus } from '@/backend/pages/Menu/api';
 
 const getMenuPath = (menu) => `/menus/${menu.id}`;
@@ -44,7 +45,7 @@ const userAccessItems = [
 export function AppSidebar(props) {
     const navigate = useNavigate();
     const location = useLocation();
-    useAppContext();
+    const { setUser } = useAppContext();
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [menus, setMenus] = useState([]);
     const [isMenusLoading, setIsMenusLoading] = useState(true);
@@ -81,7 +82,7 @@ export function AppSidebar(props) {
 
     const homeItems = useMemo(
         () => [
-            { title: 'Dashboard', icon: Gauge, path: '/dashboard' },
+            { title: 'Dashboard', icon: Gauge, path: '/' },
             { title: 'Pages', icon: Gauge, path: '/pages' },
             {
                 title: 'Menus',
@@ -107,25 +108,14 @@ export function AppSidebar(props) {
         setIsLoggingOut(true);
 
         try {
-            await fetch('/sanctum/csrf-cookie', {
-                credentials: 'include',
-                headers: {
-                    Accept: 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            });
-
-            await fetch('/api/logout', {
-                method: 'POST',
-                credentials: 'include',
-                headers: {
-                    Accept: 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            });
+            await logoutCurrentUser();
+            setUser(null);
+            navigate('/login', { replace: true });
+        } catch (error) {
+            console.error(error);
+            window.alert('Logout failed. Please try again.');
         } finally {
             setIsLoggingOut(false);
-            navigate('/');
         }
     };
 

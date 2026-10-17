@@ -80,7 +80,7 @@ export function RegisterForm() {
                 setUser(payload.user);
             }
 
-            navigate('/dashboard');
+            navigate('/');
         } catch {
             setErrorMessage('Unable to reach the server. Please try again.');
         } finally {
@@ -168,7 +168,7 @@ export function RegisterForm() {
 
                     <p className="text-center text-sm text-muted-foreground">
                         Already have an account?{' '}
-                        <Link to="/" className="font-medium text-foreground underline underline-offset-4">
+                        <Link to="/login" className="font-medium text-foreground underline underline-offset-4">
                             Login
                         </Link>
                     </p>

@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BellRing, CircleUser } from 'lucide-react';
+import { useAppContext } from '@/backend/context/AppContext';
+import { logoutCurrentUser } from '@/backend/lib/auth';
 
 export function UserMenu({ user, warehouseName }) {
     const navigate = useNavigate();
+    const { setUser } = useAppContext();
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const [isNotificationOpen, setIsNotificationOpen] = useState(false);
     const [notifications, setNotifications] = useState([]);
@@ -66,26 +69,15 @@ export function UserMenu({ user, warehouseName }) {
         setIsLoggingOut(true);
 
         try {
-            await fetch('/sanctum/csrf-cookie', {
-                credentials: 'include',
-                headers: {
-                    Accept: 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            });
-
-            await fetch('/api/logout', {
-                method: 'POST',
-                credentials: 'include',
-                headers: {
-                    Accept: 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            });
+            await logoutCurrentUser();
+            setUser(null);
+            navigate('/login', { replace: true });
+        } catch (error) {
+            console.error(error);
+            window.alert('Logout failed. Please try again.');
         } finally {
             setIsLoggingOut(false);
             setIsUserMenuOpen(false);
-            navigate('/');
         }
     };
 

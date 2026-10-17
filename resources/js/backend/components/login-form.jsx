@@ -73,7 +73,7 @@ export function LoginForm() {
                 setUser(userPayload);
             }
 
-            navigate('/dashboard');
+            navigate('/');
         } catch {
             setErrorMessage('Unable to reach the server. Please try again.');
         } finally {
